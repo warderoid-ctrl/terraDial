@@ -1,9 +1,6 @@
 #include <Arduino.h>
 #include <lvgl.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
 #include "pins.h"
-#include "secrets.h"
 #include "config/settings.h"
 #include "display/lgfx_config.h"
 #include "display/ui_nav.h"
@@ -11,10 +8,12 @@
 #include "display/ui_jog.h"
 #include "display/ui_files.h"
 #include "display/ui_lights.h"
+#include "display/ui_settings.h"
+#include "display/ui_job_progress.h"
 #include "input/encoder.h"
 #include "led/panel_ring.h"
 #include "net/fluidnc_client.h"
-#include "net/terrapixel_client.h"
+#include "net/wifi_manager.h"
 #include <CST816D.h>
 
 // ---- terraTouch: CrowPanel round-screen control panel for terraPen ----
@@ -146,14 +145,6 @@ static void initTouchAndDisplay()
     lv_indev_drv_register(&indevDrv);
 }
 
-static void initWifi()
-{
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false); // matches terraPixel's note: WiFi sleep hurts responsiveness of the status stream
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    Serial.println("WiFi.begin() issued, connecting in background");
-}
-
 void setup()
 {
     Serial.begin(115200);
@@ -173,7 +164,7 @@ void setup()
 
     backlightInit();
 
-    initWifi();
+    WifiManager::begin();
 
     Serial.println("terraTouch stage-2 bring-up ready");
 }
@@ -214,22 +205,12 @@ void loop()
     jogWheel.update();
     UiNav::update();
 
-    static bool fluidNcBegun = false;
-    if (!fluidNcBegun && WiFi.status() == WL_CONNECTED)
-    {
-        Serial.print("WiFi connected, IP ");
-        Serial.println(WiFi.localIP());
-        // Shared by both clients below -- unique hostname, distinct from
-        // FluidNC's own "terrapen" and terraPixel's "terrapen-leds".
-        MDNS.begin("terratouch");
-        fluidNC.begin();
-        terraPixel.begin();
-        fluidNcBegun = true;
-    }
-    if (fluidNcBegun) fluidNC.update();
+    WifiManager::update();
+    if (WifiManager::isReady()) fluidNC.update();
 
     uiFilesUpdate();
     uiLightsUpdate();
+    uiSettingsUpdate();
 
     panelRing.setMode(fluidNC.status().mode);
     panelRing.update();
@@ -240,6 +221,7 @@ void loop()
         lastStatusUiUpdate = millis();
         uiDialUpdate(fluidNC.status());
         uiJogUpdate(fluidNC.status());
+        uiJobProgressUpdate(fluidNC.status());
     }
 
     updateBacklightIdle();

@@ -27,6 +27,8 @@ namespace Config
         settings.backlightTimeoutSec = prefs.getUShort("blTimeout", 60);
         settings.penJogMm = prefs.getFloat("penMm", PEN_JOG_MM);
         settings.penJogFeed = prefs.getFloat("penFeed", PEN_JOG_FEED);
+        copyToBuf(settings.wifiSsid, sizeof(settings.wifiSsid), prefs.getString("wifiSsid", WIFI_SSID));
+        copyToBuf(settings.wifiPass, sizeof(settings.wifiPass), prefs.getString("wifiPass", WIFI_PASS));
     }
 
     AppSettings &get() { return settings; }
@@ -38,5 +40,7 @@ namespace Config
         prefs.putUShort("blTimeout", settings.backlightTimeoutSec);
         prefs.putFloat("penMm", settings.penJogMm);
         prefs.putFloat("penFeed", settings.penJogFeed);
+        prefs.putString("wifiSsid", settings.wifiSsid);
+        prefs.putString("wifiPass", settings.wifiPass);
     }
 }

@@ -12,6 +12,10 @@ namespace
         const char *txt = lv_msgbox_get_active_btn_text(mbox);
         if (txt && strcmp(txt, "Home") == 0)
         {
+            // $X first: FluidNC won't home while alarmed, and homing after
+            // an unrelated alarm is exactly the "clear the bed, then
+            // home" flow this confirm exists for.
+            fluidNC.clearAlarm();
             fluidNC.home();
         }
         lv_msgbox_close(mbox);
@@ -45,6 +49,7 @@ lv_obj_t *uiHomeCreate()
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, "$H");
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(lbl, Palette::accentFg(), 0); // accent() is a light pastel now -- needs a dark fg
     lv_obj_center(lbl);
 
     return shell.screen;

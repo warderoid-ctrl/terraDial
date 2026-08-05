@@ -18,6 +18,5 @@ struct ScreenShell
 // the round-safe area, like the Jog/Files ring color changes).
 //
 // icon: an LV_SYMBOL_* placeholder, matching the same item's icon on the
-// dial (see ui_dial.cpp's DIAL_ITEMS) -- not the real Lucide glyph yet, see
-// pie_menu.cpp's header comment.
+// dial (see ui_dial.cpp's DIAL_ITEMS) -- not the real Lucide glyph yet.
 ScreenShell createScreenShell(const char *title, const char *icon);

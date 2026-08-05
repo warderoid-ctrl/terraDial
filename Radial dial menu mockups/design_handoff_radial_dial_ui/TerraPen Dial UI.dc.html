@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; }
+  a { color: oklch(55% 0.09 300); }
+  a:hover { color: oklch(45% 0.09 300); }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:oklch(96% 0.006 80);font-family:'Manrope',sans-serif;padding:72px 64px 100px;box-sizing:border-box;color:oklch(22% 0.01 280)">
+
+  <div style="max-width:760px">
+    <div style="font:600 11px/1 'JetBrains Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:14px">terraPen · dial controller · CrowPanel 1.28&Prime; round touch+knob · 240&times;240px · icons: Lucide</div>
+    <h1 style="font-size:34px;font-weight:800;margin:0 0 12px;letter-spacing:-0.01em">Full screen set — carousel navigation</h1>
+    <p style="font-size:15px;line-height:1.6;color:oklch(40% 0.015 280);margin:0;max-width:620px">Switched every multi-item menu (Home, Jobs, Settings) from the radial ring to a carousel — it scales better once Home has 8 destinations. Knob rotation pages through cards, knob click confirms, touch taps any card directly, and the physical touch button is back/home everywhere.</p>
+    <p style="font-size:12.5px;line-height:1.6;color:oklch(52% 0.015 280);margin:10px 0 0;max-width:620px">Note: I don't have the <b>terraTouch</b> repo in this project — Lights and the extra Settings items below are my best inference. Share that link and I'll line these up exactly.</p>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:64px 48px;margin-top:56px">
+
+    <!-- 01 HOME -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset;overflow:hidden">
+
+        <div style="position:absolute;left:-58px;top:210px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:22px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(70% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"></line><circle cx="9" cy="7" r="2"></circle><line x1="4" y1="14" x2="20" y2="14"></line><circle cx="16" cy="14" r="2"></circle><line x1="4" y1="21" x2="20" y2="21"></line><circle cx="8" cy="21" r="2"></circle></svg>
+          <div style="font-size:11px;font-weight:600;color:oklch(65% 0.02 290)">Settings</div>
+        </div>
+        <div style="position:absolute;right:-58px;top:210px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:22px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(70% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+          <div style="font-size:11px;font-weight:600;color:oklch(65% 0.02 290)">Jog</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:120px;transform:translateX(-50%);width:190px;height:190px;border-radius:28px;background:oklch(33% 0.02 290);box-shadow:0 16px 34px -10px rgba(0,0,0,0.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="oklch(78% 0.09 300)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+          <div style="font-size:17px;font-weight:700;color:oklch(97% 0.005 90)">Jobs</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:328px;transform:translateX(-50%);font:500 11px/1 'JetBrains Mono',monospace;color:oklch(55% 0.02 290)">1 of 8</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">01 · Home</div>
+        <div style="font-size:15px;font-weight:600">Jobs · Jog · Pen · Lights · Home · E-Stop · Alarm · Settings</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Rotate knob to page · click or tap to open</div>
+      </div>
+    </div>
+
+    <!-- 02 JOBS -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset;overflow:hidden">
+
+        <div style="position:absolute;left:-58px;top:200px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:20px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(65% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+        </div>
+        <div style="position:absolute;right:-58px;top:200px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:20px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(65% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+        </div>
+
+        <div style="position:absolute;left:50%;top:98px;transform:translateX(-50%);width:196px;height:172px;border-radius:24px;background:oklch(33% 0.02 290);box-shadow:0 16px 34px -10px rgba(0,0,0,0.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 16px;box-sizing:border-box">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="oklch(78% 0.09 300)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg>
+          <div style="font-size:13.5px;font-weight:700;color:oklch(97% 0.005 90);max-width:164px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">kaleidoscope_hex_tile…</div>
+          <div style="font-size:10.5px;color:oklch(62% 0.02 290)">_v3_final_REV2.svg</div>
+          <div style="font-size:10.5px;color:oklch(55% 0.02 290);margin-top:2px">SD card · 1.2k pts · ~34 min</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:288px;transform:translateX(-50%);background:oklch(78% 0.09 300);color:oklch(18% 0.02 290);font-size:12.5px;font-weight:700;padding:10px 26px;border-radius:20px;display:flex;align-items:center;gap:6px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="oklch(18% 0.02 290)" stroke="none"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+          Run job
+        </div>
+
+        <div style="position:absolute;left:50%;top:334px;transform:translateX(-50%);font:500 11px/1 'JetBrains Mono',monospace;color:oklch(55% 0.02 290)">4 of 11</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">02 · Jobs (SD card)</div>
+        <div style="font-size:15px;font-weight:600">Long names truncate, never wrap</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Rotate to browse · tap card or click knob to select+run</div>
+      </div>
+    </div>
+
+    <!-- 03 PLOTTING -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+        <div style="position:absolute;inset:12px;border-radius:50%;background:conic-gradient(oklch(78% 0.09 300) 0deg 227deg, oklch(34% 0.02 290) 227deg 360deg)"></div>
+        <div style="position:absolute;inset:23px;border-radius:50%;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%)"></div>
+
+        <div style="position:absolute;left:50%;top:74px;transform:translateX(-50%);text-align:center">
+          <div style="font:600 9px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(60% 0.03 290)">Plotting</div>
+          <div style="font-size:13px;font-weight:600;color:oklch(90% 0.005 90);margin-top:4px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">kaleidoscope_hex_tile…</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-58%);text-align:center">
+          <div style="font-size:52px;font-weight:800;color:oklch(97% 0.005 90);line-height:1">63<span style="font-size:22px;font-weight:600">%</span></div>
+          <div style="font-size:12px;color:oklch(68% 0.02 290);margin-top:2px">≈ 12 min left</div>
+        </div>
+
+        <div style="position:absolute;left:50%;bottom:96px;transform:translateX(-50%);display:flex;gap:20px">
+          <div style="width:58px;height:58px;border-radius:50%;background:oklch(38% 0.02 290);display:flex;align-items:center;justify-content:center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="oklch(90% 0.005 90)" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1.5"></rect><rect x="14" y="4" width="4" height="16" rx="1.5"></rect></svg>
+          </div>
+          <div style="width:58px;height:58px;border-radius:50%;background:oklch(38% 0.02 290);display:flex;align-items:center;justify-content:center">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="oklch(80% 0.08 45)" stroke="none"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:50%;bottom:52px;transform:translateX(-50%);display:flex;align-items:center;gap:6px;font:500 10.5px/1 'JetBrains Mono',monospace;color:oklch(70% 0.02 290)">
+          <div style="width:6px;height:6px;border-radius:50%;background:oklch(80% 0.08 45)"></div>
+          pen down · 900mm/min
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">03 · Job in progress</div>
+        <div style="font-size:15px;font-weight:600">Progress hugs the bezel</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Touch pause/stop · click knob also pauses</div>
+      </div>
+    </div>
+
+    <!-- 04 JOG -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+
+        <div style="position:absolute;left:50%;top:52px;transform:translateX(-50%);display:flex;gap:8px">
+          <div style="padding:5px 14px;border-radius:12px;font:600 11px/1 'JetBrains Mono',monospace;color:oklch(55% 0.02 290)">X</div>
+          <div style="padding:5px 14px;border-radius:12px;background:oklch(78% 0.09 300);font:600 11px/1 'JetBrains Mono',monospace;color:oklch(18% 0.02 290)">Y</div>
+          <div style="padding:5px 14px;border-radius:12px;font:600 11px/1 'JetBrains Mono',monospace;color:oklch(55% 0.02 290)">Z</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-64%);text-align:center">
+          <div style="font-size:40px;font-weight:800;color:oklch(97% 0.005 90);line-height:1">128.4<span style="font-size:16px;font-weight:600"> mm</span></div>
+          <div style="font-size:11px;color:oklch(60% 0.02 290);margin-top:2px">Y position</div>
+        </div>
+
+        <div style="position:absolute;left:56px;top:52%;transform:translateY(-50%);width:58px;height:58px;border-radius:50%;background:oklch(38% 0.02 290);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:oklch(92% 0.005 90)">&minus;</div>
+        <div style="position:absolute;right:56px;top:52%;transform:translateY(-50%);width:58px;height:58px;border-radius:50%;background:oklch(38% 0.02 290);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:oklch(92% 0.005 90)">+</div>
+
+        <div style="position:absolute;left:50%;bottom:76px;transform:translateX(-50%);display:flex;gap:8px">
+          <div style="padding:7px 14px;border-radius:14px;font:600 11px/1 'JetBrains Mono',monospace;color:oklch(60% 0.02 290);background:oklch(30% 0.02 290)">0.1</div>
+          <div style="padding:7px 14px;border-radius:14px;font:600 11px/1 'JetBrains Mono',monospace;color:oklch(18% 0.02 290);background:oklch(78% 0.09 300)">1</div>
+          <div style="padding:7px 14px;border-radius:14px;font:600 11px/1 'JetBrains Mono',monospace;color:oklch(60% 0.02 290);background:oklch(30% 0.02 290)">10</div>
+          <div style="padding:7px 10px;border-radius:14px;font:500 10.5px/1 'JetBrains Mono',monospace;color:oklch(50% 0.02 290)">mm/step</div>
+        </div>
+
+        <div style="position:absolute;left:50%;bottom:40px;transform:translateX(-50%);font-size:11px;color:oklch(52% 0.02 290);text-align:center">Z axis: 0.1 / 1mm steps only — no 10mm</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">04 · Jog</div>
+        <div style="font-size:15px;font-weight:600">X / Y / Z, step-selectable</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Tap X/Y/Z chip or knob-click to switch axis · rotate to jog</div>
+      </div>
+    </div>
+
+    <!-- 05 PEN -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+        <div style="position:absolute;left:50%;top:130px;transform:translateX(-50%);text-align:center">
+          <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="oklch(85% 0.01 290)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+        </div>
+        <div style="position:absolute;left:50%;top:230px;transform:translateX(-50%);display:flex;background:oklch(27% 0.02 290);border-radius:22px;padding:5px;gap:4px">
+          <div style="padding:12px 26px;border-radius:18px;font-size:13px;font-weight:700;color:oklch(60% 0.02 290)">Pen up</div>
+          <div style="padding:12px 26px;border-radius:18px;background:oklch(78% 0.09 300);font-size:13px;font-weight:700;color:oklch(18% 0.02 290)">Pen down</div>
+        </div>
+        <div style="position:absolute;left:50%;bottom:88px;transform:translateX(-50%);font-size:11.5px;color:oklch(55% 0.02 290);text-align:center">Servo/solenoid state · click knob toggles</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">05 · Pen up / down</div>
+        <div style="font-size:15px;font-weight:600">Segmented state, not a toggle switch</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Tap either half or click knob to flip state</div>
+      </div>
+    </div>
+
+    <!-- 06 LIGHTS -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+        <div style="position:absolute;left:50%;top:56px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(80% 0.08 45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.29 1.5 3.5.6.57 1.35 1.3 1.5 2.5"></path></svg>
+        </div>
+
+        <div style="position:absolute;left:50%;top:118px;transform:translateX(-50%);width:280px">
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:oklch(85% 0.01 290);margin-bottom:8px"><span>Dial ring</span><span style="color:oklch(60% 0.02 290);font-weight:500">On</span></div>
+          <div style="height:6px;border-radius:4px;background:oklch(30% 0.02 290);position:relative">
+            <div style="position:absolute;left:0;top:0;width:68%;height:100%;border-radius:4px;background:oklch(78% 0.09 300)"></div>
+            <div style="position:absolute;left:68%;top:50%;width:16px;height:16px;border-radius:50%;background:oklch(97% 0.005 90);transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:186px;transform:translateX(-50%);width:280px">
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:oklch(85% 0.01 290);margin-bottom:8px"><span>terraPen LED</span><span style="color:oklch(60% 0.02 290);font-weight:500">On</span></div>
+          <div style="height:6px;border-radius:4px;background:oklch(30% 0.02 290);position:relative">
+            <div style="position:absolute;left:0;top:0;width:40%;height:100%;border-radius:4px;background:oklch(80% 0.08 45)"></div>
+            <div style="position:absolute;left:40%;top:50%;width:16px;height:16px;border-radius:50%;background:oklch(97% 0.005 90);transform:translate(-50%,-50%);box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:250px;transform:translateX(-50%);display:flex;gap:12px">
+          <div style="width:26px;height:26px;border-radius:50%;background:oklch(78% 0.09 300);box-shadow:0 0 0 3px oklch(97% 0.005 90 / 0.5)"></div>
+          <div style="width:26px;height:26px;border-radius:50%;background:oklch(80% 0.08 45)"></div>
+          <div style="width:26px;height:26px;border-radius:50%;background:oklch(88% 0.02 200)"></div>
+          <div style="width:26px;height:26px;border-radius:50%;background:oklch(97% 0.005 90)"></div>
+        </div>
+
+        <div style="position:absolute;left:50%;bottom:60px;transform:translateX(-50%);font-size:11px;color:oklch(52% 0.02 290);text-align:center">Ring colour presets · matches terraPen accent</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">06 · Lights</div>
+        <div style="font-size:15px;font-weight:600">Dial LED + terraPen LED</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Rotate to adjust the selected slider · inferred from terraTouch</div>
+      </div>
+    </div>
+
+    <!-- 07 HOMING -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+        <div style="position:absolute;left:50%;top:118px;transform:translateX(-50%)">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="oklch(80% 0.08 45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"></path><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"></path></svg>
+        </div>
+        <div style="position:absolute;left:50%;top:182px;transform:translateX(-50%);text-align:center;width:280px">
+          <div style="font-size:16px;font-weight:700;color:oklch(97% 0.005 90)">Clear the bed first</div>
+          <div style="font-size:12px;color:oklch(65% 0.02 290);margin-top:6px;line-height:1.5">Lift the pen and make sure the carriage can move freely before homing.</div>
+        </div>
+        <div style="position:absolute;left:50%;bottom:70px;transform:translateX(-50%);background:oklch(80% 0.08 45);color:oklch(20% 0.02 60);font-size:13px;font-weight:700;padding:12px 28px;border-radius:22px">Confirm &amp; home</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">07 · Home (clear prompt)</div>
+        <div style="font-size:15px;font-weight:600">Safety gate before homing</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Confirm sends $X, then homes</div>
+      </div>
+    </div>
+
+    <!-- 08 E-STOP -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset;display:flex;align-items:center;justify-content:center">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+          <div style="width:172px;height:172px;border-radius:50%;background:oklch(62% 0.19 25);box-shadow:0 0 0 10px oklch(62% 0.19 25 / 0.15), 0 16px 34px -10px rgba(0,0,0,0.5);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="oklch(98% 0 0)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="13"></line><circle cx="12" cy="16" r="1" fill="oklch(98% 0 0)" stroke="none"></circle></svg>
+            <div style="font-size:17px;font-weight:800;color:oklch(98% 0 0);letter-spacing:0.04em">E-STOP</div>
+          </div>
+          <div style="font-size:11.5px;color:oklch(55% 0.02 290)">Feed hold + soft reset</div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">08 · E-Stop</div>
+        <div style="font-size:15px;font-weight:600">Always reachable, one button</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Physical button double-press = E-stop from anywhere</div>
+      </div>
+    </div>
+
+    <!-- 09 ALARM CLEAR -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset">
+        <div style="position:absolute;left:50%;top:120px;transform:translateX(-50%)">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="oklch(80% 0.08 45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+        </div>
+        <div style="position:absolute;left:50%;top:184px;transform:translateX(-50%);text-align:center">
+          <div style="font-size:16px;font-weight:700;color:oklch(97% 0.005 90)">Alarm active</div>
+          <div style="font-size:11.5px;color:oklch(65% 0.02 290);margin-top:6px">Hard limit triggered · Z&minus;</div>
+        </div>
+        <div style="position:absolute;left:50%;bottom:70px;transform:translateX(-50%);background:oklch(80% 0.08 45);color:oklch(20% 0.02 60);font-size:13px;font-weight:700;padding:12px 26px;border-radius:22px">Clear alarm</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">09 · Alarm clear</div>
+        <div style="font-size:15px;font-weight:600">Shows the reason, not just a button</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">Sends $X · appears automatically on alarm</div>
+      </div>
+    </div>
+
+    <!-- 10 SETTINGS -->
+    <div style="display:flex;flex-direction:column;align-items:center;gap:18px;width:440px">
+      <div style="width:440px;height:440px;border-radius:50%;position:relative;background:radial-gradient(circle at 32% 26%, oklch(29% 0.025 290), oklch(15% 0.02 290) 72%);box-shadow:0 30px 70px -24px rgba(20,10,40,0.35), 0 0 0 1px rgba(255,255,255,0.05) inset;overflow:hidden">
+
+        <div style="position:absolute;left:-58px;top:200px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:20px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(65% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="16" x2="12" y2="11"></line><circle cx="12" cy="7.5" r="0.9" fill="oklch(65% 0.02 290)" stroke="none"></circle></svg>
+        </div>
+        <div style="position:absolute;right:-58px;top:200px;transform:translateY(-50%) scale(0.6);width:150px;height:150px;border-radius:20px;background:oklch(26% 0.02 290);opacity:0.5;display:flex;align-items:center;justify-content:center">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="oklch(65% 0.02 290)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6" rx="1"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line></svg>
+        </div>
+
+        <div style="position:absolute;left:50%;top:88px;transform:translateX(-50%);width:210px;height:196px;border-radius:24px;background:oklch(33% 0.02 290);box-shadow:0 16px 34px -10px rgba(0,0,0,0.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:0 18px;box-sizing:border-box">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="oklch(80% 0.08 45)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5a16 16 0 0 1 20 0"></path><path d="M5 12.5a11 11 0 0 1 14 0"></path><path d="M8.5 16.5a5.5 5.5 0 0 1 7 0"></path><circle cx="12" cy="20" r="1" fill="oklch(80% 0.08 45)" stroke="none"></circle></svg>
+          <div style="font-size:14px;font-weight:700;color:oklch(97% 0.005 90)">terraPen-CNC</div>
+          <div style="font-size:15px;letter-spacing:0.2em;color:oklch(60% 0.02 290)">••••••••</div>
+          <div style="background:oklch(78% 0.09 300);color:oklch(18% 0.02 290);font-size:11.5px;font-weight:700;padding:7px 20px;border-radius:14px;margin-top:2px">Connect</div>
+        </div>
+
+        <div style="position:absolute;left:50%;top:302px;transform:translateX(-50%);font:500 11px/1 'JetBrains Mono',monospace;color:oklch(55% 0.02 290)">Wi-Fi · 1 of 4</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font:600 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:oklch(55% 0.02 290);margin-bottom:6px">10 · Settings</div>
+        <div style="font-size:15px;font-weight:600">Wi-Fi · Machine · Display · About</div>
+        <div style="font-size:12.5px;color:oklch(45% 0.015 280);margin-top:2px">On-screen keyboard for SSID/password not shown · inferred from terraTouch</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>
