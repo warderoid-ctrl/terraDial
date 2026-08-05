@@ -11,7 +11,7 @@ namespace
     // pixel-exact port.
     const lv_coord_t PEEK_X_OFFSET = 92;
     const lv_coord_t CARD_Y_OFFSET = -10; // nudge up, leaving room for the index label below
-    const lv_coord_t INDEX_Y_OFFSET = 96;
+    const lv_coord_t INDEX_Y_OFFSET = 74; // was 96 -- leaves room for a back button below it (ui_screen_shell.h's addBackButton())
 }
 
 void Carousel::create(lv_obj_t *parent, lv_coord_t centerSize, lv_coord_t peekSize)

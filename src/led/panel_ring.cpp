@@ -11,7 +11,7 @@ static uint8_t sineTab[256];
 
 // Same durations terraPixel uses for its "just finished a job" celebration.
 static const uint32_t CELEBRATE_MS = 12000;
-static const uint32_t FRAME_MS = 20; // 50fps
+static const uint32_t FRAME_MS = 33; // ~30fps -- was 20 (50fps); this is decorative, not worth the extra strip.show() calls (each briefly disables interrupts to bit-bang WS2812 timing)
 
 static uint8_t sin8t(uint8_t theta) { return sineTab[theta]; }
 
@@ -74,7 +74,14 @@ void PanelRing::render()
             // a single bright pixel chases around the 5 LEDs to read as "active".
             strip.setBrightness(userBright);
             fillAll(0, 0, 0);
-            int idx = (t / 120) % LED_RING_COUNT;
+            int step = (int)((t / 120) % LED_RING_COUNT);
+            // Confirmed on hardware: this strip's pixel order runs
+            // COUNTER-clockwise around the panel, so ascending index walks
+            // the ring backwards relative to the knob. Hence clockwise
+            // (chaseDir_ >= 0) is the descending-index case, not the
+            // ascending one -- the obvious mapping had the light sweeping
+            // opposite the direction the dial was turned.
+            int idx = chaseDir_ >= 0 ? (LED_RING_COUNT - 1 - step) : step;
             strip.setPixelColor(idx, 255, 250, 240);
             break;
         }

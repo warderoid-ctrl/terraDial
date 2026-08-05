@@ -1,56 +1,79 @@
 #include "ui_home.h"
 #include "../net/fluidnc_client.h"
 #include "palette.h"
+#include "ui_nav.h"
 #include "ui_screen_shell.h"
-#include <string.h>
 
+// Single-screen safety gate, per the mockup (07 - "Home (clear prompt)"):
+// icon + "Clear the bed first" + body copy + a "Confirm & home" pill.
+//
+// This used to be a $H button that opened a separate lv_msgbox confirm, so
+// homing took two taps across two different UI idioms. The screen already
+// exists solely to be a confirmation, so the extra popup added a step
+// without adding safety. Deliberately built to the same shape as
+// ui_alarm_clear.cpp (icon -> title -> body -> single action pill) so the
+// two confirm screens read and behave identically.
 namespace
 {
-    void confirmEventCb(lv_event_t *e)
-    {
-        lv_obj_t *mbox = lv_event_get_current_target(e);
-        const char *txt = lv_msgbox_get_active_btn_text(mbox);
-        if (txt && strcmp(txt, "Home") == 0)
-        {
-            // $X first: FluidNC won't home while alarmed, and homing after
-            // an unrelated alarm is exactly the "clear the bed, then
-            // home" flow this confirm exists for.
-            fluidNC.clearAlarm();
-            fluidNC.home();
-        }
-        lv_msgbox_close(mbox);
-    }
-
-    void homeBtnCb(lv_event_t *e)
-    {
-        (void)e;
-        static const char *btns[] = {"Home", "Cancel", ""};
-        lv_obj_t *mbox = lv_msgbox_create(NULL, "Confirm Homing", "Run $H now?\nMake sure the bed is clear.", btns, false);
-        lv_obj_center(mbox);
-        lv_obj_add_event_cb(mbox, confirmEventCb, LV_EVENT_VALUE_CHANGED, NULL);
-    }
+    void confirmBtnCb(lv_event_t *e) { (void)e; uiHomeTrigger(); }
 }
 
 lv_obj_t *uiHomeCreate()
 {
-    ScreenShell shell = createScreenShell("HOME", LV_SYMBOL_HOME);
+    lv_obj_t *scr = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr, Palette::bgApp(), 0);
 
-    lv_obj_t *desc = lv_label_create(shell.content);
-    lv_label_set_text(desc, "Send the machine\nhome ($H)");
-    lv_obj_set_style_text_align(desc, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_font(desc, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(desc, Palette::border(), 0);
+    // Vertical rhythm here is deliberately tight and shared with
+    // ui_alarm_clear.cpp: icon / title / body / pill / back button all have
+    // to fit inside a 240px circle without touching. Stacking four items
+    // plus the back button leaves only a few px of slack, so these offsets
+    // are load-bearing -- changing a font size or adding a body line will
+    // collide with the pill (which is exactly what happened before).
+    lv_obj_t *iconLbl = lv_label_create(scr);
+    lv_label_set_text(iconLbl, LV_SYMBOL_HOME); // matches this item's dial icon
+    lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(iconLbl, Palette::accent(), 0);
+    lv_obj_align(iconLbl, LV_ALIGN_CENTER, 0, -58);
 
-    lv_obj_t *btn = lv_btn_create(shell.content);
-    lv_obj_set_size(btn, 100, 44);
-    lv_obj_set_style_bg_color(btn, Palette::accent(), 0);
-    lv_obj_set_style_radius(btn, 10, 0);
-    lv_obj_add_event_cb(btn, homeBtnCb, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, "$H");
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(lbl, Palette::accentFg(), 0); // accent() is a light pastel now -- needs a dark fg
-    lv_obj_center(lbl);
+    lv_obj_t *titleLbl = lv_label_create(scr);
+    lv_label_set_text(titleLbl, "Clear the bed first");
+    lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(titleLbl, lv_color_white(), 0);
+    lv_obj_align(titleLbl, LV_ALIGN_CENTER, 0, -28);
 
-    return shell.screen;
+    lv_obj_t *bodyLbl = lv_label_create(scr);
+    lv_label_set_text(bodyLbl, "Lift the pen and check the\ncarriage can move freely.");
+    lv_obj_set_style_text_align(bodyLbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(bodyLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(bodyLbl, Palette::textMuted(), 0);
+    lv_obj_align(bodyLbl, LV_ALIGN_CENTER, 0, -2);
+
+    lv_obj_t *btn = lv_btn_create(scr);
+    lv_obj_set_size(btn, 160, 38);
+    lv_obj_set_style_bg_color(btn, Palette::accent(), 0); // primary action on this screen
+    lv_obj_set_style_radius(btn, 19, 0);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -64); // below the body copy, above the back button
+    lv_obj_add_event_cb(btn, confirmBtnCb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *btnLbl = lv_label_create(btn);
+    lv_label_set_text(btnLbl, "Confirm & home");
+    lv_obj_set_style_text_font(btnLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(btnLbl, Palette::accentFg(), 0);
+    lv_obj_center(btnLbl);
+
+    addBackButton(scr);
+
+    return scr;
+}
+
+void uiHomeTrigger()
+{
+    // $X first: FluidNC won't home while alarmed, and homing after an
+    // unrelated alarm is exactly the "clear the bed, then home" flow this
+    // screen exists for.
+    fluidNC.clearAlarm();
+    fluidNC.home();
+    // Back to the dial, whose hub shows the live machine state -- otherwise
+    // confirming leaves you on an unchanged screen with no sign anything
+    // happened.
+    UiNav::goHome();
 }

@@ -2,6 +2,9 @@
 
 #include <Arduino.h>
 #include <IPAddress.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include "machine_mode.h"
 #include "sd_file_list.h"
 
@@ -24,16 +27,39 @@ struct FluidNCStatus
     // specific FluidNC version).
     float jobPercent = -1;
     char jobFilename[48] = {0};
+
+    // True only for a real SD-file job started via runFile() -- distinct
+    // from MachineMode::Run, which FluidNC also reports for plain jogging
+    // ("Jog" state maps to Run too, see applyState()). ui_nav uses this to
+    // gate its auto-navigation to/from Job Progress so a knob jog doesn't
+    // get mistaken for a job starting.
+    bool jobActive = false;
 };
 
+// THREADING: update() does genuinely blocking work -- mDNS resolution
+// (seconds), and WebSocket frame reads that spin until the rest of a
+// partially-arrived frame shows up. It therefore runs on main.cpp's
+// dedicated networkTask (core 0), NEVER on the UI/LVGL loop, which is what
+// used to make the whole panel stutter whenever the plotter was connected.
+//
+// Everything else here is safe to call from the UI task: the command
+// methods only enqueue text for networkTask to transmit (they never touch
+// the WebSocket, which is not thread-safe), status() is a plain read of a
+// struct networkTask updates, and the file-list accessors take a short
+// mutex.
 class FluidNCClient
 {
 public:
+    // Call once from setup(), before networkTask starts -- creates the
+    // command queue and file-list mutex so UI-thread callers always have
+    // somewhere to put commands, even before WiFi is up.
+    void initTransport();
+
     // Call once, after WiFi is connected.
     void begin();
 
-    // Call every loop iteration. Non-blocking: handles mDNS resolution,
-    // (re)connection, and pumping received frames.
+    // networkTask only. Handles mDNS resolution, (re)connection, draining
+    // the outbound command queue, and pumping received frames.
     void update();
 
     const FluidNCStatus &status() const { return status_; }
@@ -60,10 +86,13 @@ public:
     // subfolder browsing).
     static const int MAX_FILES = SdFileList::MAX_FILES;
     void requestFileList();
-    bool fileListReady() const { return sdFiles_.ready(); }
-    void clearFileListReady() { sdFiles_.clearReady(); }
-    int fileListCount() const { return sdFiles_.count(); }
-    const FluidNCFileEntry &fileListEntry(int i) const { return sdFiles_.entry(i); }
+    bool fileListReady() const;
+    void clearFileListReady();
+    int fileListCount() const;
+    // Copies entry i into out; returns false if i is out of range. Copies
+    // rather than returning a reference because networkTask may rewrite the
+    // underlying array the moment the mutex is released.
+    bool fileListEntry(int i, FluidNCFileEntry &out) const;
 
     // Internal: bridges the C-style WebSocketsClient event callback back
     // into this instance. Public only because the trampoline needs it;
@@ -86,6 +115,21 @@ private:
     static const uint32_t CELEBRATE_MS = 12000;
 
     SdFileList sdFiles_;
+
+    // Outbound command plumbing. UI-thread callers enqueue; networkTask
+    // dequeues and transmits. `raw` distinguishes realtime single bytes
+    // ('?', '!', 0x18, 0x85) from newline-terminated line commands.
+    struct OutCmd
+    {
+        bool raw;
+        char text[112];
+    };
+    static const int CMD_QUEUE_DEPTH = 12;
+    QueueHandle_t cmdQueue_ = nullptr;
+    mutable SemaphoreHandle_t fileMutex_ = nullptr;
+
+    void enqueue(bool raw, const char *text);
+    void drainCommandQueue();
 
     bool resolveHost();
     void sendRaw(const char *s);

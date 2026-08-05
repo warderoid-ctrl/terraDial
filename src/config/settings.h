@@ -13,7 +13,13 @@ struct AppSettings
 {
     char fluidNcHost[32];
     char terraPixelHost[32];
-    uint16_t backlightTimeoutSec; // 0 = never auto-dim
+    uint16_t backlightTimeoutSec;  // 0 = never auto-dim
+    uint8_t backlightBrightnessPct; // 10-100, the "awake" backlight level
+    // Flips which way the dial/carousels step relative to knob rotation.
+    // Purely a menu-navigation preference -- jogging always follows the
+    // physical direction of the knob, since that maps to real machine
+    // movement and inverting it would be a safety hazard.
+    bool invertMenuRotation;
     float penJogMm;
     float penJogFeed; // mm/min
     char wifiSsid[33];

@@ -68,6 +68,27 @@ private:
     uint8_t pendingClicks_ = 0;
     uint32_t lastReleaseAt_ = 0;
 
+    // Jogging by rotating while resting a thumb on the knob easily nudges
+    // the push switch closed too -- without this, that reads as a real
+    // press and (once held past LONG_PRESS_MS by an otherwise-continuous
+    // turn) fires an unwanted LongPress/back navigation. Snapshot the raw
+    // quadrature tick count when the switch closes; if it moves more than
+    // mechanical slop during the hold, the press is incidental contact
+    // from turning, not a deliberate click, so suppress the event.
+    //
+    // Was 2 ticks -- too tight: pressing these EC11-style combined encoder/
+    // button parts mechanically nudges the shaft a couple of quadrature
+    // ticks on an entirely normal, deliberate click (the switch and the
+    // rotary contacts share the same shaft), so ordinary clicks were being
+    // swallowed too, not just accidental ones from active turning (reported
+    // as needing "a long hard press" just to open a dial item). A real
+    // continuous turn while holding accumulates many more ticks than that
+    // over even a fraction of a second, so a higher threshold still catches
+    // the case this exists for.
+    static const int32_t PRESS_MOVEMENT_SUPPRESS_TICKS = 6;
+    int32_t pressStartRawTicks_ = 0;
+    bool suppressPress_ = false;
+
     ButtonEvent pendingEvent_ = ButtonEvent::None;
 
     void updateRotation();

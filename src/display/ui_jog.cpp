@@ -1,12 +1,14 @@
 #include "ui_jog.h"
 #include "jog_config.h"
 #include "palette.h"
+#include "ui_screen_shell.h"
+#include "../led/panel_ring.h"
 #include <stdio.h>
 
 // X/Y/Z + step chips are tap-to-select directly (replacing the old knob-
-// click-cycles-step behavior); the ± buttons jog one step via touch.
-// Per the mockup, knob click now cycles axis instead, and knob rotation
-// still jogs continuously. Z axis omits the 10mm step chip.
+// click-cycles-step behavior). Knob rotation jogs continuously (the ring's
+// own +/- motion), so there's no separate on-screen +/- control -- knob
+// click cycles axis instead. Z axis omits the 10mm step chip.
 namespace
 {
     const char *AXIS_NAMES[] = {"X", "Y", "Z"};
@@ -21,7 +23,6 @@ namespace
     lv_obj_t *stepChipLbls[JOG_STEP_COUNT] = {nullptr};
     lv_obj_t *posLabel = nullptr;
     lv_obj_t *axisSubLabel = nullptr;
-    lv_obj_t *captionLbl = nullptr;
 
     void restyleChips()
     {
@@ -42,15 +43,13 @@ namespace
             }
             lv_obj_clear_flag(stepChips[i], LV_OBJ_FLAG_HIDDEN);
             bool sel = i == stepIndex;
-            lv_obj_set_style_bg_color(stepChips[i], sel ? Palette::accent() : Palette::bgTerminal(), 0);
+            lv_obj_set_style_bg_color(stepChips[i], sel ? Palette::accent() : Palette::bgSecondary(), 0);
             lv_obj_set_style_text_color(stepChipLbls[i], sel ? Palette::accentFg() : Palette::textMuted(), 0);
         }
 
         char subBuf[16];
         snprintf(subBuf, sizeof(subBuf), "%s position", AXIS_NAMES[axisIndex]);
         lv_label_set_text(axisSubLabel, subBuf);
-
-        lv_label_set_text(captionLbl, axisIndex == 2 ? "Z axis: 0.1 / 1mm steps only" : "");
     }
 
     void setAxis(int idx)
@@ -69,16 +68,8 @@ namespace
         restyleChips();
     }
 
-    void jogOneStep(int direction)
-    {
-        float distanceMm = JOG_STEPS[stepIndex].mm * direction;
-        fluidNC.jog(AXIS_NAMES[axisIndex][0], distanceMm, JOG_STEPS[stepIndex].feedMmMin);
-    }
-
     void axisChipCb(lv_event_t *e) { setAxis((int)(intptr_t)lv_event_get_user_data(e)); }
     void stepChipCb(lv_event_t *e) { setStep((int)(intptr_t)lv_event_get_user_data(e)); }
-    void minusBtnCb(lv_event_t *e) { (void)e; jogOneStep(-1); }
-    void plusBtnCb(lv_event_t *e) { (void)e; jogOneStep(1); }
 }
 
 lv_obj_t *uiJogCreate()
@@ -122,26 +113,6 @@ lv_obj_t *uiJogCreate()
     lv_obj_set_style_text_color(axisSubLabel, Palette::textMuted(), 0);
     lv_obj_align_to(axisSubLabel, posLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 4);
 
-    lv_obj_t *minusBtn = lv_btn_create(scr);
-    lv_obj_set_size(minusBtn, 52, 52);
-    lv_obj_set_style_radius(minusBtn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(minusBtn, Palette::bgTerminal(), 0);
-    lv_obj_align(minusBtn, LV_ALIGN_LEFT_MID, 14, 8);
-    lv_obj_add_event_cb(minusBtn, minusBtnCb, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *minusLbl = lv_label_create(minusBtn);
-    lv_label_set_text(minusLbl, LV_SYMBOL_MINUS);
-    lv_obj_center(minusLbl);
-
-    lv_obj_t *plusBtn = lv_btn_create(scr);
-    lv_obj_set_size(plusBtn, 52, 52);
-    lv_obj_set_style_radius(plusBtn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(plusBtn, Palette::bgTerminal(), 0);
-    lv_obj_align(plusBtn, LV_ALIGN_RIGHT_MID, -14, 8);
-    lv_obj_add_event_cb(plusBtn, plusBtnCb, LV_EVENT_CLICKED, NULL);
-    lv_obj_t *plusLbl = lv_label_create(plusBtn);
-    lv_label_set_text(plusLbl, LV_SYMBOL_PLUS);
-    lv_obj_center(plusLbl);
-
     lv_obj_t *stepRow = lv_obj_create(scr);
     lv_obj_set_size(stepRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(stepRow, LV_OPA_TRANSP, 0);
@@ -170,10 +141,10 @@ lv_obj_t *uiJogCreate()
         stepChipLbls[i] = lbl;
     }
 
-    captionLbl = lv_label_create(scr);
-    lv_obj_set_style_text_font(captionLbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(captionLbl, Palette::border(), 0);
-    lv_obj_align(captionLbl, LV_ALIGN_BOTTOM_MID, 0, -16);
+    // No "Z axis: 0.1 / 1mm steps only" caption: it sat under the back
+    // button, and the step chips already show the truth by hiding the 10mm
+    // chip on Z -- the sentence just restated what the row was doing.
+    addBackButton(scr);
 
     restyleChips();
     return scr;
@@ -182,6 +153,9 @@ lv_obj_t *uiJogCreate()
 void uiJogHandleRotate(int32_t delta)
 {
     if (delta == 0) return;
+    // Make the LED ring sweep the same way the knob turned: + clockwise,
+    // - counter-clockwise.
+    panelRing.setChaseDirection(delta > 0 ? 1 : -1);
     // delta carries direction and the encoder's own fast-turn weighting
     // (see input/encoder.cpp) -- used directly as a step multiplier so a
     // quick flick moves further per tick than a slow turn.

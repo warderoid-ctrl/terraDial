@@ -4,6 +4,9 @@
 #include "carousel.h"
 #include "palette.h"
 #include "ui_widgets.h"
+#include "ui_screen_shell.h"
+#include "lgfx_config.h" // backlightSet()
+#include "../input/lvgl_encoder.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -31,9 +34,18 @@ namespace
     // always attempt a reconnect on the way out, so canceling never just
     // leaves the radio silently disconnected (see runScan()'s comment).
     void (*editOnClosed)() = nullptr;
+    lv_group_t *editGroup = nullptr; // knob focus group while the keyboard is up
 
     void closeEditor()
     {
+        // Hand the knob back to ui_nav BEFORE deleting the widgets it's
+        // focused on, so nothing is left pointing at freed objects.
+        LvglEncoder::release();
+        if (editGroup)
+        {
+            lv_group_del(editGroup);
+            editGroup = nullptr;
+        }
         if (editOverlay)
         {
             lv_obj_del(editOverlay);
@@ -101,7 +113,7 @@ namespace
         lv_obj_t *cancelBtn = lv_btn_create(editOverlay);
         lv_obj_set_size(cancelBtn, 28, 28);
         lv_obj_set_style_radius(cancelBtn, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(cancelBtn, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(cancelBtn, Palette::bgSecondary(), 0);
         lv_obj_align(cancelBtn, LV_ALIGN_TOP_MID, 0, 14);
         lv_obj_add_event_cb(cancelBtn, cancelBtnCb, LV_EVENT_CLICKED, NULL);
         lv_obj_t *cancelLbl = lv_label_create(cancelBtn);
@@ -115,18 +127,46 @@ namespace
         lv_textarea_set_one_line(editTextarea, true);
         lv_textarea_set_password_mode(editTextarea, isPassword);
         lv_textarea_set_text(editTextarea, target);
+        lv_obj_set_style_bg_color(editTextarea, Palette::bgSecondary(), 0);
+        lv_obj_set_style_border_color(editTextarea, Palette::border(), 0);
+        lv_obj_set_style_border_width(editTextarea, 1, 0);
+        lv_obj_set_style_text_color(editTextarea, Palette::text(), 0);
 
         lv_obj_t *kb = lv_keyboard_create(editOverlay);
         lv_obj_set_size(kb, 240, 150);
         lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
         lv_keyboard_set_textarea(kb, editTextarea);
         lv_obj_add_event_cb(kb, keyboardEventCb, LV_EVENT_ALL, NULL);
+        // Stock LVGL paints the keyboard in its own grey/blue theme, which
+        // was the single most obviously un-terraForge surface in the app.
+        lv_obj_set_style_bg_color(kb, Palette::bgApp(), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(kb, Palette::bgSecondary(), LV_PART_ITEMS);
+        lv_obj_set_style_bg_color(kb, Palette::accentHover(), LV_PART_ITEMS | LV_STATE_PRESSED);
+        lv_obj_set_style_text_color(kb, Palette::text(), LV_PART_ITEMS);
+        lv_obj_set_style_border_width(kb, 0, LV_PART_ITEMS);
+        lv_obj_set_style_radius(kb, 4, LV_PART_ITEMS);
+
+        // A full QWERTY map across 240px gives ~24px keys -- narrower than a
+        // fingertip, and the lower rows sit near the round bezel where they
+        // can barely be touched at all. So drive it with the knob too:
+        // rotate steps the highlighted key, click types it, long-press
+        // closes. Touch still works for anyone who can hit the keys.
+        editGroup = lv_group_create();
+        lv_group_add_obj(editGroup, kb);
+        lv_group_focus_obj(kb);
+        LvglEncoder::capture(editGroup, closeEditor);
+
+        // Highlight the knob-focused key clearly -- with encoder input
+        // there's no finger to show where you are, so the focus ring IS the
+        // cursor.
+        lv_obj_set_style_bg_color(kb, Palette::accent(), LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
+        lv_obj_set_style_text_color(kb, Palette::accentFg(), LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
     }
 
     lv_obj_t *makeCardShell(const char *title)
     {
         lv_obj_t *card = lv_obj_create(screenRoot);
-        lv_obj_set_style_bg_color(card, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(card, Palette::bgSecondary(), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, 20, 0);
         lv_obj_set_style_border_width(card, 0, 0);
@@ -262,7 +302,7 @@ namespace
         lv_obj_t *cancelBtn = lv_btn_create(scanOverlay);
         lv_obj_set_size(cancelBtn, 28, 28);
         lv_obj_set_style_radius(cancelBtn, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(cancelBtn, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(cancelBtn, Palette::bgSecondary(), 0);
         lv_obj_align(cancelBtn, LV_ALIGN_TOP_MID, 0, 14);
         lv_obj_add_event_cb(cancelBtn, scanCancelCb, LV_EVENT_CLICKED, NULL);
         lv_obj_t *cancelLbl = lv_label_create(cancelBtn);
@@ -289,7 +329,7 @@ namespace
 
         lv_obj_t *rescanBtn = lv_btn_create(scanOverlay);
         lv_obj_set_size(rescanBtn, 100, 30);
-        lv_obj_set_style_bg_color(rescanBtn, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(rescanBtn, Palette::bgSecondary(), 0);
         lv_obj_set_style_radius(rescanBtn, 15, 0);
         lv_obj_align(rescanBtn, LV_ALIGN_BOTTOM_MID, 0, -16);
         lv_obj_add_event_cb(rescanBtn, rescanCb, LV_EVENT_CLICKED, NULL);
@@ -430,10 +470,8 @@ namespace
         penMmLbl = lv_label_create(penMmRow);
         lv_obj_set_style_text_font(penMmLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(penMmLbl, Palette::textMuted(), 0);
-        lv_obj_t *penMmSlider = lv_slider_create(penMmRow);
-        lv_obj_set_width(penMmSlider, lv_pct(100));
-        lv_slider_set_range(penMmSlider, 5, 200); // 0.5mm - 20.0mm
-        lv_slider_set_value(penMmSlider, (int)(Config::get().penJogMm * 10.0f), LV_ANIM_OFF);
+        // 0.5mm - 20.0mm, stored x10 so the slider can stay integer
+        lv_obj_t *penMmSlider = uiMakeSlider(penMmRow, 5, 200, (int)(Config::get().penJogMm * 10.0f));
         lv_obj_add_event_cb(penMmSlider, penMmSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
         lv_obj_add_event_cb(penMmSlider, penMmSliderCb, LV_EVENT_RELEASED, NULL);
         {
@@ -446,10 +484,7 @@ namespace
         penFeedLbl = lv_label_create(penFeedRow);
         lv_obj_set_style_text_font(penFeedLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(penFeedLbl, Palette::textMuted(), 0);
-        lv_obj_t *penFeedSlider = lv_slider_create(penFeedRow);
-        lv_obj_set_width(penFeedSlider, lv_pct(100));
-        lv_slider_set_range(penFeedSlider, 100, 3000);
-        lv_slider_set_value(penFeedSlider, (int)Config::get().penJogFeed, LV_ANIM_OFF);
+        lv_obj_t *penFeedSlider = uiMakeSlider(penFeedRow, 100, 3000, (int)Config::get().penJogFeed);
         lv_obj_add_event_cb(penFeedSlider, penFeedSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
         lv_obj_add_event_cb(penFeedSlider, penFeedSliderCb, LV_EVENT_RELEASED, NULL);
         {
@@ -461,8 +496,34 @@ namespace
         return card;
     }
 
-    // ---- Display card (backlight timeout) ----
+    // ---- Display card (backlight brightness + timeout, menu direction) ----
     lv_obj_t *timeoutLbl = nullptr;
+    lv_obj_t *brightLbl = nullptr;
+
+    void brightSliderCb(lv_event_t *e)
+    {
+        lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
+        int v = lv_slider_get_value(slider);
+        char buf[24];
+        snprintf(buf, sizeof(buf), "Brightness: %d%%", v);
+        lv_label_set_text(brightLbl, buf);
+
+        // Apply live while dragging so the slider actually does something
+        // visible -- this screen previously only had the auto-dim TIMEOUT
+        // slider, which is why "the backlight slider" appeared to do nothing
+        // to brightness.
+        Config::get().backlightBrightnessPct = (uint8_t)v;
+        backlightSet((uint8_t)v);
+
+        if (lv_event_get_code(e) == LV_EVENT_RELEASED) Config::save();
+    }
+
+    void invertRotCb(lv_event_t *e)
+    {
+        lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
+        Config::get().invertMenuRotation = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        Config::save();
+    }
 
     void timeoutSliderCb(lv_event_t *e)
     {
@@ -484,14 +545,30 @@ namespace
     {
         lv_obj_t *card = makeCardShell("DISPLAY");
 
+        lv_obj_t *brightRow = uiMakeRow(card);
+        brightLbl = lv_label_create(brightRow);
+        lv_obj_set_style_text_font(brightLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(brightLbl, Palette::textMuted(), 0);
+        // Floor of 10%: 0 would black the panel out with no way to see the
+        // slider well enough to turn it back up.
+        lv_obj_t *brightSlider = uiMakeSlider(brightRow, 10, 100, Config::get().backlightBrightnessPct);
+        lv_obj_add_event_cb(brightSlider, brightSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
+        lv_obj_add_event_cb(brightSlider, brightSliderCb, LV_EVENT_RELEASED, NULL);
+        {
+            char buf[24];
+            snprintf(buf, sizeof(buf), "Brightness: %d%%", Config::get().backlightBrightnessPct);
+            lv_label_set_text(brightLbl, buf);
+        }
+
+        lv_obj_t *invertRow = uiMakeRow(card, "Invert menu rotation");
+        lv_obj_t *invertSw = uiMakeSwitch(invertRow, Config::get().invertMenuRotation);
+        lv_obj_add_event_cb(invertSw, invertRotCb, LV_EVENT_VALUE_CHANGED, NULL);
+
         lv_obj_t *timeoutRow = uiMakeRow(card);
         timeoutLbl = lv_label_create(timeoutRow);
         lv_obj_set_style_text_font(timeoutLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(timeoutLbl, Palette::textMuted(), 0);
-        lv_obj_t *timeoutSlider = lv_slider_create(timeoutRow);
-        lv_obj_set_width(timeoutSlider, lv_pct(100));
-        lv_slider_set_range(timeoutSlider, 0, 300);
-        lv_slider_set_value(timeoutSlider, Config::get().backlightTimeoutSec, LV_ANIM_OFF);
+        lv_obj_t *timeoutSlider = uiMakeSlider(timeoutRow, 0, 300, Config::get().backlightTimeoutSec);
         lv_obj_add_event_cb(timeoutSlider, timeoutSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
         lv_obj_add_event_cb(timeoutSlider, timeoutSliderCb, LV_EVENT_RELEASED, NULL);
         {
@@ -542,6 +619,8 @@ lv_obj_t *uiSettingsCreate()
     carousel.addCard(makeMachineCard());
     carousel.addCard(makeDisplayCard());
     carousel.addCard(makeAboutCard());
+
+    addBackButton(screenRoot);
 
     return screenRoot;
 }

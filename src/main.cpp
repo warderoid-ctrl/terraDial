@@ -11,6 +11,7 @@
 #include "display/ui_settings.h"
 #include "display/ui_job_progress.h"
 #include "input/encoder.h"
+#include "input/lvgl_encoder.h"
 #include "led/panel_ring.h"
 #include "net/fluidnc_client.h"
 #include "net/wifi_manager.h"
@@ -30,8 +31,11 @@ static const uint32_t SCREEN_H = 240;
 // Backlight idle-dim levels and the status-widget refresh rate -- named
 // here since they live in the loop() a future feature is likely to touch.
 static const uint8_t BACKLIGHT_DIMMED_PCT = 8;
-static const uint8_t BACKLIGHT_FULL_PCT = 100;
-static const uint32_t STATUS_UI_REFRESH_MS = 150;
+// "Full" is whatever the user set on the Settings > Display brightness
+// slider, not a fixed 100 -- otherwise waking from the idle dim would
+// silently override their choice.
+static uint8_t backlightFullPct() { return Config::get().backlightBrightnessPct; }
+static const uint32_t STATUS_UI_REFRESH_MS = 150; // back to the original value -- chasing lower latency here was adding background redraw/network load the ESP32 didn't have to spare
 
 static lv_disp_draw_buf_t drawBuf;
 static lv_color_t *lvBuf0 = nullptr;
@@ -143,6 +147,42 @@ static void initTouchAndDisplay()
     indevDrv.type = LV_INDEV_TYPE_POINTER;
     indevDrv.read_cb = touchpadRead;
     lv_indev_drv_register(&indevDrv);
+
+    // Second indev: the knob, as an LVGL encoder. Dormant unless a screen
+    // explicitly captures it (today: the WiFi keyboard) -- see
+    // input/lvgl_encoder.h.
+    LvglEncoder::begin();
+}
+
+// Everything network-related runs here, on core 0, NOT in loop().
+//
+// This is the fix for the panel stuttering whenever the plotter was
+// connected. All three network paths block for a long time by design:
+// MDNS.queryHost() waits up to 1.5-2s, WebSocketsClient's frame reader
+// spins until a partially-arrived frame completes, and TerraPixelClient's
+// HTTP calls wait up to 1s. Running any of those in loop() stalls
+// lv_timer_handler() and the touch driver for exactly that long -- which is
+// why input felt fine at boot and then "laggy, then catches up" once
+// FluidNC (or an absent terraPixel) was in the picture.
+//
+// Arduino's loop() runs on core 1, so pinning this to core 0 means a
+// blocked socket can no longer delay a redraw or a button press. Commands
+// travel UI->network through FluidNCClient's queue; status travels back as
+// plain struct reads. Nothing here touches LVGL -- LVGL is single-threaded
+// and stays entirely on core 1.
+static void networkTask(void *)
+{
+    for (;;)
+    {
+        WifiManager::update();
+        if (WifiManager::isReady()) fluidNC.update();
+        vTaskDelay(pdMS_TO_TICKS(2));
+    }
+}
+
+static void startNetworkTask()
+{
+    xTaskCreatePinnedToCore(networkTask, "net", 8192, nullptr, 1, nullptr, 0);
 }
 
 void setup()
@@ -163,8 +203,11 @@ void setup()
     panelRing.setMode(MachineMode::Boot);
 
     backlightInit();
+    backlightSet(backlightFullPct()); // backlightInit() defaults to full -- honour the saved level
 
+    fluidNC.initTransport(); // command queue must exist before the UI can enqueue
     WifiManager::begin();
+    startNetworkTask();
 
     Serial.println("terraTouch stage-2 bring-up ready");
 }
@@ -188,13 +231,13 @@ static void updateBacklightIdle()
         }
         else if (idleMs <= timeoutMs && backlightDimmed)
         {
-            backlightSet(BACKLIGHT_FULL_PCT);
+            backlightSet(backlightFullPct());
             backlightDimmed = false;
         }
     }
     else if (backlightDimmed)
     {
-        backlightSet(BACKLIGHT_FULL_PCT);
+        backlightSet(backlightFullPct());
         backlightDimmed = false;
     }
 }
@@ -203,13 +246,12 @@ void loop()
 {
     lv_timer_handler();
     jogWheel.update();
-    UiNav::update();
+    UiNav::update(); // also drives uiLightsUpdate(), but only while Lights is on screen
 
-    WifiManager::update();
-    if (WifiManager::isReady()) fluidNC.update();
+    // WifiManager::update()/fluidNC.update() deliberately absent -- they run
+    // on networkTask (core 0) so their blocking calls can't stall the UI.
 
     uiFilesUpdate();
-    uiLightsUpdate();
     uiSettingsUpdate();
 
     panelRing.setMode(fluidNC.status().mode);
@@ -226,5 +268,9 @@ void loop()
 
     updateBacklightIdle();
 
+    // Restored to the original 5ms -- cutting it chasing lower input latency
+    // left the WiFi/BT background task (and the I2C touch driver's own
+    // timing) too little room on this core, which made things feel
+    // laggier, not snappier.
     delay(5);
 }

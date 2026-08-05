@@ -19,6 +19,13 @@ public:
     void setBrightness(uint8_t percent);
     uint8_t brightness() const { return brightnessPct_; }
 
+    // Which way the Run/Jog chase animation travels: +1 clockwise, -1
+    // counter-clockwise. Set from the Jog screen so the light visibly
+    // follows the knob -- turning the dial one way and watching the ring
+    // sweep the other reads as the machine doing the opposite of what you
+    // asked.
+    void setChaseDirection(int8_t dir) { chaseDir_ = dir >= 0 ? 1 : -1; }
+
     // Call every loop iteration; internally time-gated to ~50fps.
     void update();
 
@@ -28,6 +35,7 @@ private:
     uint32_t modeEnteredAt_ = 0;
     uint32_t lastFrameAt_ = 0;
     uint16_t rainbowHue_ = 0;
+    int8_t chaseDir_ = 1;
     bool sineTableBuilt_ = false;
 
     void render();

@@ -17,10 +17,91 @@ static void wsEventTrampoline(WStype_t type, uint8_t *payload, size_t length)
     fluidNC.onWsEvent((uint8_t)type, payload, length);
 }
 
+void FluidNCClient::initTransport()
+{
+    if (!cmdQueue_) cmdQueue_ = xQueueCreate(CMD_QUEUE_DEPTH, sizeof(OutCmd));
+    if (!fileMutex_) fileMutex_ = xSemaphoreCreateMutex();
+}
+
 void FluidNCClient::begin()
 {
     // mDNS is started once in main.cpp (shared with TerraPixelClient)
     // before this is used -- nothing to do here.
+}
+
+void FluidNCClient::enqueue(bool raw, const char *text)
+{
+    if (!cmdQueue_) return; // initTransport() not called yet -- nothing to do but drop
+    OutCmd cmd;
+    cmd.raw = raw;
+    strncpy(cmd.text, text, sizeof(cmd.text) - 1);
+    cmd.text[sizeof(cmd.text) - 1] = '\0';
+    // Never block the UI task waiting for queue space: if the network task
+    // is wedged behind a slow socket, dropping a jog/status command is far
+    // better than freezing the display until it recovers.
+    if (xQueueSend(cmdQueue_, &cmd, 0) != pdTRUE)
+        Serial.printf("[fluidnc] command queue full, dropped: %s\n", text);
+}
+
+void FluidNCClient::drainCommandQueue()
+{
+    if (!cmdQueue_) return;
+    OutCmd cmd;
+    while (xQueueReceive(cmdQueue_, &cmd, 0) == pdTRUE)
+    {
+        if (cmd.raw) sendRaw(cmd.text);
+        else sendLine(String(cmd.text));
+    }
+}
+
+bool FluidNCClient::fileListReady() const
+{
+    if (!fileMutex_) return false;
+    bool v = false;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        v = sdFiles_.ready();
+        xSemaphoreGive(fileMutex_);
+    }
+    return v;
+}
+
+void FluidNCClient::clearFileListReady()
+{
+    if (!fileMutex_) return;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        sdFiles_.clearReady();
+        xSemaphoreGive(fileMutex_);
+    }
+}
+
+int FluidNCClient::fileListCount() const
+{
+    if (!fileMutex_) return 0;
+    int n = 0;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        n = sdFiles_.count();
+        xSemaphoreGive(fileMutex_);
+    }
+    return n;
+}
+
+bool FluidNCClient::fileListEntry(int i, FluidNCFileEntry &out) const
+{
+    if (!fileMutex_) return false;
+    bool ok = false;
+    if (xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        if (i >= 0 && i < sdFiles_.count())
+        {
+            out = sdFiles_.entry(i);
+            ok = true;
+        }
+        xSemaphoreGive(fileMutex_);
+    }
+    return ok;
 }
 
 bool FluidNCClient::resolveHost()
@@ -59,8 +140,13 @@ void FluidNCClient::update()
         return;
     }
 
+    drainCommandQueue();
     wsClient.loop();
-    sdFiles_.checkTimeout();
+    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        sdFiles_.checkTimeout();
+        xSemaphoreGive(fileMutex_);
+    }
 }
 
 void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
@@ -81,15 +167,29 @@ void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
             status_.connected = false;
             status_.mode = MachineMode::Boot;
             status_.havePos = false;
-            sdFiles_.abort();
+            if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+            {
+                sdFiles_.abort();
+                xSemaphoreGive(fileMutex_);
+            }
             break;
 
         case WStype_TEXT:
         case WStype_BIN:
-            // FluidNC's WSChannel::write() sends status reports and command
-            // responses as binary frames (only a couple of control messages
-            // use text frames) -- both carry the same ASCII line stream, so
-            // treat them identically here.
+        // A message too large for one WebSocket frame arrives as separate
+        // fragment events instead of TEXT/BIN -- the SD file listing is the
+        // one response big enough to hit this (everything else: status
+        // reports, command acks, is small enough to always land as a single
+        // TEXT/BIN frame). ingest() just accumulates raw bytes into a line
+        // buffer regardless of frame boundaries, so fragments feed through
+        // it exactly like TEXT/BIN; without these cases every fragmented
+        // message -- in practice, only the file listing -- was silently
+        // dropped, which is why Jobs always timed out with literally no
+        // data captured while everything else worked fine.
+        case WStype_FRAGMENT_TEXT_START:
+        case WStype_FRAGMENT_BIN_START:
+        case WStype_FRAGMENT:
+        case WStype_FRAGMENT_FIN:
             ingest((const char *)payload, length);
             break;
 
@@ -106,7 +206,11 @@ void FluidNCClient::sendRaw(const char *s)
 
 void FluidNCClient::sendLine(const String &line)
 {
-    if (!status_.connected) return;
+    if (!status_.connected)
+    {
+        Serial.printf("[fluidnc] sendLine(\"%s\") dropped -- not connected\n", line.c_str());
+        return;
+    }
     wsClient.sendTXT(line + "\n");
 }
 
@@ -151,6 +255,7 @@ void FluidNCClient::applyState(const char *state)
     }
 
     if (next == MachineMode::Run && status_.mode != MachineMode::Run) runStartedAt_ = millis();
+    if (next != MachineMode::Run && next != MachineMode::Hold) status_.jobActive = false;
     status_.mode = next;
 }
 
@@ -170,7 +275,11 @@ void FluidNCClient::handleLine(char *line)
         // concatenated -- SdFileList accumulates until the trailing
         // "ok"/"error:" that FluidNC's Channel::ack() sends after every
         // command completes.
-        sdFiles_.feedLine(line);
+        if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+        {
+            sdFiles_.feedLine(line);
+            xSemaphoreGive(fileMutex_);
+        }
         return;
     }
 
@@ -231,44 +340,59 @@ void FluidNCClient::handleLine(char *line)
     }
 }
 
-void FluidNCClient::requestStatus() { sendRaw("?"); }
-void FluidNCClient::feedHold()      { sendRaw("!"); }
-void FluidNCClient::resume()        { sendRaw("~"); }
-void FluidNCClient::softReset()     { sendRaw("\x18"); }
+// All of these are called from the UI task -- they only enqueue, so a
+// stalled socket can never stall a button press (see the THREADING note in
+// the header).
+void FluidNCClient::requestStatus() { enqueue(true, "?"); }
+void FluidNCClient::feedHold()      { enqueue(true, "!"); }
+void FluidNCClient::resume()        { enqueue(true, "~"); }
+void FluidNCClient::softReset()     { enqueue(true, "\x18"); }
 
-void FluidNCClient::home()       { sendLine("$H"); }
-void FluidNCClient::clearAlarm() { sendLine("$X"); }
+void FluidNCClient::home()       { enqueue(false, "$H"); }
+void FluidNCClient::clearAlarm() { enqueue(false, "$X"); }
 
 void FluidNCClient::jog(char axis, float deltaMm, float feedrate)
 {
+    // Jog cancel (GRBL/FluidNC realtime byte 0x85) first: without it,
+    // FluidNC keeps running the previous jog move to completion before a
+    // new $J= line takes effect, so alternating commands (knob jogging
+    // back and forth, tapping Pen up then Pen down) felt laggy -- each new
+    // press had to wait out whatever motion was still in flight. Cancelling
+    // first lets a new jog interrupt the old one immediately.
+    enqueue(true, "\x85");
     String cmd = "$J=G91 G21 ";
     cmd += axis;
     cmd += String(deltaMm, 3);
     cmd += " F";
     cmd += String(feedrate, 0);
-    sendLine(cmd);
+    enqueue(false, cmd.c_str());
 }
 
 void FluidNCClient::requestFileList()
 {
-    sdFiles_.beginCapture();
+    if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
+    {
+        sdFiles_.beginCapture();
+        xSemaphoreGive(fileMutex_);
+    }
     // Unencapsulated JSON (no [MSG:JSON:...] wrapper, unlike Files/ListGCode)
     // -- non-recursive listing of the SD root.
-    sendLine("$SD/ListJSON=/");
+    enqueue(false, "$SD/ListJSON=/");
 }
 
 void FluidNCClient::runFile(const char *filename)
 {
+    status_.jobActive = true;
     String cmd = "$SD/Run=";
     cmd += filename;
-    sendLine(cmd);
+    enqueue(false, cmd.c_str());
 }
 
 void FluidNCClient::deleteFile(const char *filename)
 {
     String cmd = "$SD/Delete=";
     cmd += filename;
-    sendLine(cmd);
+    enqueue(false, cmd.c_str());
 }
 
-void FluidNCClient::sendGcodeLine(const char *line) { sendLine(String(line)); }
+void FluidNCClient::sendGcodeLine(const char *line) { enqueue(false, line); }

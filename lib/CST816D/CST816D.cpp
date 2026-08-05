@@ -65,15 +65,27 @@ bool CST816D::getTouch(uint16_t *x, uint16_t *y, uint8_t *gesture)
 
 uint8_t CST816D::i2c_read(uint8_t addr)
 {
-    uint8_t rdData;
+    uint8_t rdData = 0;
     uint8_t rdDataCount;
-    do
+    // Was an unbounded "retry until it works" loop -- on this board the
+    // I2C lines run near the same stepper-driver wiring the encoder's own
+    // comments already flag for EMI-induced edge noise, so an occasional
+    // glitched transaction is expected. Retrying forever on that turned a
+    // brief bus hiccup into a full main-loop freeze (LVGL redraw, touch
+    // polling, everything) for however long the bus stayed noisy --
+    // matching reports of the whole UI needing several seconds to
+    // "catch up" after a touch. Cap it: give up after a handful of quick
+    // retries and report "not touched" for this poll rather than hang;
+    // the next ~16ms poll (LV_INDEV_DEF_READ_PERIOD) tries again.
+    const uint8_t MAX_ATTEMPTS = 5;
+    for (uint8_t attempt = 0; attempt < MAX_ATTEMPTS; attempt++)
     {
         Wire1.beginTransmission(I2C_ADDR_CST816D);
         Wire1.write(addr);
         Wire1.endTransmission(false); // Restart
         rdDataCount = Wire1.requestFrom(I2C_ADDR_CST816D, 1);
-    } while (rdDataCount == 0);
+        if (rdDataCount != 0) break;
+    }
     while (Wire1.available())
     {
         rdData = Wire1.read();

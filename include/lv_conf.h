@@ -30,12 +30,25 @@
 /*====================
    HAL SETTINGS
  *====================*/
-#define LV_DISP_DEF_REFR_PERIOD 30
-#define LV_INDEV_DEF_READ_PERIOD 30
+// Earlier attempts swung these between 10 and 30 chasing input latency, but
+// the real stalls were never LVGL's refresh rate -- they were blocking
+// network calls sharing the main loop (see main.cpp's networkTask, which now
+// runs them on the other core). With the loop no longer blocked, 16ms
+// (~60Hz) is comfortably affordable again.
+#define LV_DISP_DEF_REFR_PERIOD 16
+#define LV_INDEV_DEF_READ_PERIOD 16
 #define LV_TICK_CUSTOM 1
 #define LV_TICK_CUSTOM_INCLUDE "Arduino.h"
 #define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())
 #define LV_DPI_DEF 130
+
+// How far a finger may travel during a press before LVGL reclassifies it as
+// a scroll gesture and never emits CLICKED. The 10px default is tuned for
+// phone-sized screens with a stylus-ish touch; on a 240x240 round panel a
+// fingertip covers a big fraction of a button and rolls several px on a
+// normal tap, so taps were being silently swallowed as scrolls (felt like
+// "I pressed it and nothing happened"). 30px makes taps far more forgiving.
+#define LV_INDEV_DEF_SCROLL_LIMIT 30
 
 /*=======================
  * FEATURE CONFIGURATION

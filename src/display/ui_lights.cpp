@@ -60,7 +60,7 @@ namespace
 
 lv_obj_t *uiLightsCreate()
 {
-    ScreenShell shell = createScreenShell("LIGHTS", LV_SYMBOL_TINT);
+    ScreenShell shell = createScreenShell("LIGHTS", LV_SYMBOL_CHARGE); // matches the dial's Lights icon
     lv_obj_t *panel = shell.content;
     // This screen has more rows than fit at once -- pack from the top
     // (scrollable) rather than the shell's default vertical centering,
@@ -69,9 +69,7 @@ lv_obj_t *uiLightsCreate()
 
     // -- Panel ring --
     lv_obj_t *panelRow = uiMakeRow(panel, "Panel ring brightness");
-    panelSlider = lv_slider_create(panelRow);
-    lv_obj_set_width(panelSlider, lv_pct(100));
-    lv_slider_set_range(panelSlider, 0, 100);
+    panelSlider = uiMakeSlider(panelRow, 0, 100, panelRing.brightness());
     lv_obj_add_event_cb(panelSlider, panelSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
 
     // -- terraPixel (rail) --
@@ -86,7 +84,7 @@ lv_obj_t *uiLightsCreate()
     connDot = lv_obj_create(railHeader);
     lv_obj_set_size(connDot, 10, 10);
     lv_obj_set_style_radius(connDot, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(connDot, lv_color_hex(0x555555), 0);
+    lv_obj_set_style_bg_color(connDot, Palette::textFaint(), 0);
     lv_obj_set_style_border_width(connDot, 0, 0);
     lv_obj_clear_flag(connDot, LV_OBJ_FLAG_CLICKABLE);
 
@@ -97,28 +95,19 @@ lv_obj_t *uiLightsCreate()
     lv_obj_set_style_pad_left(railModeLabel, 6, 0);
 
     lv_obj_t *filmRow = uiMakeRow(panel, "Film mode");
-    filmSwitch = lv_switch_create(filmRow);
+    filmSwitch = uiMakeSwitch(filmRow, false);
     lv_obj_add_event_cb(filmSwitch, filmSwitchCb, LV_EVENT_VALUE_CHANGED, NULL);
 
     lv_obj_t *railBrightRow = uiMakeRow(panel, "Rail brightness");
-    railBrightSlider = lv_slider_create(railBrightRow);
-    lv_obj_set_width(railBrightSlider, lv_pct(100));
-    lv_slider_set_range(railBrightSlider, 10, 255);
+    railBrightSlider = uiMakeSlider(railBrightRow, 10, 255, 200);
     lv_obj_add_event_cb(railBrightSlider, railBrightSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
 
     lv_obj_t *radiusRow = uiMakeRow(panel, "Comet width");
-    radiusSlider = lv_slider_create(radiusRow);
-    lv_obj_set_width(radiusSlider, lv_pct(100));
-    lv_slider_set_range(radiusSlider, 10, 80); // value/10 = LEDs (1.0-8.0)
+    radiusSlider = uiMakeSlider(radiusRow, 10, 80, 35); // value/10 = LEDs (1.0-8.0)
     lv_obj_add_event_cb(radiusSlider, radiusSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    partyBtn = lv_btn_create(panel);
-    lv_obj_set_width(partyBtn, lv_pct(100));
-    lv_obj_set_style_bg_color(partyBtn, lv_color_hex(0x6a1b9a), 0);
+    partyBtn = uiMakeButton(panel, "Party: OFF", &partyBtnLbl);
     lv_obj_add_event_cb(partyBtn, partyBtnCb, LV_EVENT_CLICKED, NULL);
-    partyBtnLbl = lv_label_create(partyBtn);
-    lv_label_set_text(partyBtnLbl, "Party: OFF");
-    lv_obj_center(partyBtnLbl);
 
     return shell.screen;
 }
@@ -134,7 +123,7 @@ void uiLightsOnShow()
 
     if (st.reachable)
     {
-        lv_obj_set_style_bg_color(connDot, lv_color_hex(0x22cc44), 0);
+        lv_obj_set_style_bg_color(connDot, Palette::accentSecondary(), 0);
         char buf[24];
         snprintf(buf, sizeof(buf), "Rail: %s", st.mode);
         lv_label_set_text(railModeLabel, buf);
@@ -148,7 +137,7 @@ void uiLightsOnShow()
     }
     else
     {
-        lv_obj_set_style_bg_color(connDot, lv_color_hex(0x555555), 0);
+        lv_obj_set_style_bg_color(connDot, Palette::textFaint(), 0);
         lv_label_set_text(railModeLabel, "Rail: unreachable");
     }
 
@@ -166,7 +155,7 @@ void uiLightsUpdate()
     if (!connDot) return; // screen not created yet
 
     const TerraPixelStatus &st = terraPixel.status();
-    lv_obj_set_style_bg_color(connDot, st.reachable ? lv_color_hex(0x22cc44) : lv_color_hex(0x555555), 0);
+    lv_obj_set_style_bg_color(connDot, st.reachable ? Palette::accentSecondary() : Palette::textFaint(), 0);
     char buf[24];
     snprintf(buf, sizeof(buf), "Rail: %s", st.reachable ? st.mode : "unreachable");
     lv_label_set_text(railModeLabel, buf);

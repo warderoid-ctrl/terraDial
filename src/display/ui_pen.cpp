@@ -22,9 +22,9 @@ namespace
 
     void restyleSegments()
     {
-        lv_obj_set_style_bg_color(upSeg, penIsUp ? Palette::accent() : Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(upSeg, penIsUp ? Palette::accent() : Palette::bgSecondary(), 0);
         lv_obj_set_style_text_color(upLbl, penIsUp ? Palette::accentFg() : Palette::textMuted(), 0);
-        lv_obj_set_style_bg_color(downSeg, !penIsUp ? Palette::accent() : Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(downSeg, !penIsUp ? Palette::accent() : Palette::bgSecondary(), 0);
         lv_obj_set_style_text_color(downLbl, !penIsUp ? Palette::accentFg() : Palette::textMuted(), 0);
     }
 
@@ -53,7 +53,7 @@ lv_obj_t *uiPenCreate()
     // reads at a glance rather than needing to infer it from a single
     // button's label.
     lv_obj_t *seg = lv_obj_create(shell.content);
-    lv_obj_set_size(seg, 170, 40);
+    lv_obj_set_size(seg, 140, 64); // was 170x40 -- taller for an easier touch target (170 also overflowed the shell's ~142px-wide safe content area)
     lv_obj_set_style_bg_color(seg, Palette::bgPanel(), 0);
     lv_obj_set_style_radius(seg, 20, 0);
     lv_obj_set_style_border_width(seg, 0, 0);
@@ -69,8 +69,9 @@ lv_obj_t *uiPenCreate()
     lv_obj_clear_flag(upSeg, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(upSeg, upSegCb, LV_EVENT_CLICKED, NULL);
     upLbl = lv_label_create(upSeg);
-    lv_label_set_text(upLbl, "Pen up");
-    lv_obj_set_style_text_font(upLbl, &lv_font_montserrat_14, 0);
+    lv_label_set_text(upLbl, "Pen\nup");
+    lv_obj_set_style_text_align(upLbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(upLbl, &lv_font_montserrat_16, 0);
     lv_obj_center(upLbl);
 
     downSeg = lv_obj_create(seg);
@@ -80,8 +81,9 @@ lv_obj_t *uiPenCreate()
     lv_obj_clear_flag(downSeg, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(downSeg, downSegCb, LV_EVENT_CLICKED, NULL);
     downLbl = lv_label_create(downSeg);
-    lv_label_set_text(downLbl, "Pen down");
-    lv_obj_set_style_text_font(downLbl, &lv_font_montserrat_14, 0);
+    lv_label_set_text(downLbl, "Pen\ndown");
+    lv_obj_set_style_text_align(downLbl, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(downLbl, &lv_font_montserrat_16, 0);
     lv_obj_center(downLbl);
 
     restyleSegments();

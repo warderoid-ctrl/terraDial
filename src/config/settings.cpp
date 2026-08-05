@@ -25,6 +25,8 @@ namespace Config
         copyToBuf(settings.fluidNcHost, sizeof(settings.fluidNcHost), prefs.getString("fncHost", FLUIDNC_HOST));
         copyToBuf(settings.terraPixelHost, sizeof(settings.terraPixelHost), prefs.getString("tpHost", TERRAPIXEL_HOST));
         settings.backlightTimeoutSec = prefs.getUShort("blTimeout", 60);
+        settings.backlightBrightnessPct = prefs.getUChar("blBright", 100);
+        settings.invertMenuRotation = prefs.getBool("invMenuRot", false);
         settings.penJogMm = prefs.getFloat("penMm", PEN_JOG_MM);
         settings.penJogFeed = prefs.getFloat("penFeed", PEN_JOG_FEED);
         copyToBuf(settings.wifiSsid, sizeof(settings.wifiSsid), prefs.getString("wifiSsid", WIFI_SSID));
@@ -38,6 +40,8 @@ namespace Config
         prefs.putString("fncHost", settings.fluidNcHost);
         prefs.putString("tpHost", settings.terraPixelHost);
         prefs.putUShort("blTimeout", settings.backlightTimeoutSec);
+        prefs.putUChar("blBright", settings.backlightBrightnessPct);
+        prefs.putBool("invMenuRot", settings.invertMenuRotation);
         prefs.putFloat("penMm", settings.penJogMm);
         prefs.putFloat("penFeed", settings.penJogFeed);
         prefs.putString("wifiSsid", settings.wifiSsid);

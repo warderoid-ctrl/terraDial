@@ -1,5 +1,31 @@
 #include "ui_screen_shell.h"
 #include "palette.h"
+#include "ui_nav.h"
+
+namespace
+{
+    void backBtnCb(lv_event_t *e) { (void)e; UiNav::goHome(); }
+}
+
+void addBackButton(lv_obj_t *screen)
+{
+    // y=-10 from the bottom edge (screen center to button center distance
+    // ~110px) -- inside the round panel's ~120px visible radius, matching
+    // the safe-inset convention the E-Stop/Alarm Clear/Job Progress
+    // screens already use for their own bottom-anchored content.
+    lv_obj_t *btn = lv_btn_create(screen);
+    lv_obj_set_size(btn, 36, 36);
+    lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(btn, Palette::bgSecondary(), 0);
+    lv_obj_set_ext_click_area(btn, 10); // easier to hit near the curved bezel
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_add_event_cb(btn, backBtnCb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_color(lbl, Palette::textMuted(), 0);
+    lv_obj_center(lbl);
+}
 
 ScreenShell createScreenShell(const char *title, const char *icon)
 {
@@ -63,6 +89,8 @@ ScreenShell createScreenShell(const char *title, const char *icon)
     // a taste issue).
     lv_obj_set_flex_align(shell.content, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scroll_dir(shell.content, LV_DIR_VER);
+
+    addBackButton(shell.screen);
 
     return shell;
 }

@@ -7,4 +7,10 @@ namespace UiNav
 {
     void begin();
     void update();
+
+    // Navigates back to the Home dial -- same effect as the knob's
+    // universal long-press-back convention. Exposed so any screen's
+    // on-screen back-arrow button (see ui_screen_shell.h's addBackButton())
+    // can trigger it directly.
+    void goHome();
 }

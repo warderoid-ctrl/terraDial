@@ -1,6 +1,7 @@
 #include "ui_job_progress.h"
 #include "ui_pen.h"
 #include "palette.h"
+#include "ui_screen_shell.h"
 #include <stdio.h>
 
 // No fabricated time-remaining: FluidNC's SD:<pct>,<filename> status field
@@ -62,7 +63,7 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_t *pauseBtn = lv_btn_create(scr);
     lv_obj_set_size(pauseBtn, 58, 58);
     lv_obj_set_style_radius(pauseBtn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(pauseBtn, Palette::bgTerminal(), 0);
+    lv_obj_set_style_bg_color(pauseBtn, Palette::bgSecondary(), 0);
     lv_obj_align(pauseBtn, LV_ALIGN_CENTER, -34, 44);
     lv_obj_add_event_cb(pauseBtn, pauseBtnCb, LV_EVENT_CLICKED, NULL);
     pauseLbl = lv_label_create(pauseBtn);
@@ -72,7 +73,7 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_t *stopBtn = lv_btn_create(scr);
     lv_obj_set_size(stopBtn, 58, 58);
     lv_obj_set_style_radius(stopBtn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(stopBtn, Palette::accentSecondary(), 0);
+    lv_obj_set_style_bg_color(stopBtn, Palette::alert(), 0); // same feedHold+softReset as E-Stop, so same colour
     lv_obj_align(stopBtn, LV_ALIGN_CENTER, 34, 44);
     lv_obj_add_event_cb(stopBtn, stopBtnCb, LV_EVENT_CLICKED, NULL);
     lv_obj_t *stopLbl = lv_label_create(stopBtn);
@@ -83,7 +84,9 @@ lv_obj_t *uiJobProgressCreate()
     penPillLbl = lv_label_create(scr);
     lv_obj_set_style_text_font(penPillLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(penPillLbl, Palette::accentSecondary(), 0);
-    lv_obj_align(penPillLbl, LV_ALIGN_BOTTOM_MID, 0, -14);
+    lv_obj_align(penPillLbl, LV_ALIGN_BOTTOM_MID, 0, -34); // was -14 -- leaves room for the back button below it
+
+    addBackButton(scr);
 
     return scr;
 }

@@ -27,6 +27,8 @@ void SdFileList::beginCapture()
 
 void SdFileList::feedLine(const char *line)
 {
+    Serial.printf("[fluidnc] SD list capture line: %s\n", line);
+
     if (!strcmp(line, "ok") || !strncmp(line, "error:", 6))
     {
         capturing_ = false;
@@ -52,7 +54,8 @@ void SdFileList::checkTimeout()
     if (!capturing_) return;
     if (millis() - requestedAt_ <= TIMEOUT_MS) return;
 
-    Serial.println("[fluidnc] file list request timed out, aborting capture");
+    Serial.printf("[fluidnc] file list request timed out, aborting capture (buffered %u bytes: %s)\n",
+                  (unsigned)buffer_.length(), buffer_.c_str());
     capturing_ = false;
     buffer_ = "";
     ready_ = true;

@@ -2,6 +2,7 @@
 #include "../net/fluidnc_client.h"
 #include "carousel.h"
 #include "palette.h"
+#include "ui_screen_shell.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -46,7 +47,7 @@ namespace
     lv_obj_t *makeCard(const FluidNCFileEntry &f)
     {
         lv_obj_t *card = lv_obj_create(screenRoot);
-        lv_obj_set_style_bg_color(card, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(card, Palette::bgSecondary(), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, 20, 0);
         lv_obj_set_style_border_width(card, 0, 0);
@@ -84,7 +85,7 @@ namespace
     lv_obj_t *makeEmptyCard()
     {
         lv_obj_t *card = lv_obj_create(screenRoot);
-        lv_obj_set_style_bg_color(card, Palette::bgTerminal(), 0);
+        lv_obj_set_style_bg_color(card, Palette::bgSecondary(), 0);
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, 20, 0);
         lv_obj_set_style_border_width(card, 0, 0);
@@ -109,14 +110,17 @@ namespace
             return;
         }
         for (int i = 0; i < count && i < FluidNCClient::MAX_FILES; i++)
-            carousel.addCard(makeCard(fluidNC.fileListEntry(i)));
+        {
+            FluidNCFileEntry entry;
+            if (fluidNC.fileListEntry(i, entry)) carousel.addCard(makeCard(entry));
+        }
     }
 
     void onCardOpen(int index)
     {
-        int count = fluidNC.fileListCount();
-        if (index < 0 || index >= count) return;
-        fluidNC.runFile(fluidNC.fileListEntry(index).name);
+        FluidNCFileEntry entry;
+        if (!fluidNC.fileListEntry(index, entry)) return;
+        fluidNC.runFile(entry.name);
     }
 }
 
@@ -128,6 +132,8 @@ lv_obj_t *uiFilesCreate()
     carousel.create(screenRoot);
     carousel.setOnOpen(onCardOpen);
     carousel.addCard(makeEmptyCard()); // placeholder until the first listing arrives
+
+    addBackButton(screenRoot);
 
     return screenRoot;
 }
@@ -151,10 +157,9 @@ void uiFilesHandleSelect()
 
 void uiFilesHandleDoubleClick()
 {
-    int count = fluidNC.fileListCount();
-    int idx = carousel.selectedIndex();
-    if (idx < 0 || idx >= count) return;
-    openConfirmFor(fluidNC.fileListEntry(idx).name);
+    FluidNCFileEntry entry;
+    if (!fluidNC.fileListEntry(carousel.selectedIndex(), entry)) return;
+    openConfirmFor(entry.name);
 }
 
 void uiFilesUpdate()

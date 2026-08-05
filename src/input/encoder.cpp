@@ -87,12 +87,14 @@ void JogWheel::updateButton()
             pressed_ = true;
             pressedAt_ = now;
             longPressFired_ = false;
+            suppressPress_ = false;
+            pressStartRawTicks_ = lastRawTicks_;
             lastActivityAt_ = now;
         }
         else if (!rawLow && pressed_)
         {
             pressed_ = false;
-            if (!longPressFired_)
+            if (!longPressFired_ && !suppressPress_)
             {
                 pendingClicks_++;
                 lastReleaseAt_ = now;
@@ -100,7 +102,14 @@ void JogWheel::updateButton()
         }
     }
 
-    if (pressed_ && !longPressFired_ && (now - pressedAt_ >= LONG_PRESS_MS))
+    int32_t movedTicks = lastRawTicks_ - pressStartRawTicks_;
+    if (movedTicks < 0) movedTicks = -movedTicks;
+    if (pressed_ && !suppressPress_ && movedTicks > PRESS_MOVEMENT_SUPPRESS_TICKS)
+    {
+        suppressPress_ = true;
+    }
+
+    if (pressed_ && !suppressPress_ && !longPressFired_ && (now - pressedAt_ >= LONG_PRESS_MS))
     {
         longPressFired_ = true;
         pendingClicks_ = 0; // long press pre-empts any pending click/double-click
