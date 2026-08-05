@@ -28,6 +28,12 @@ static CST816D touch(PIN_TOUCH_SDA, PIN_TOUCH_SCL, PIN_TOUCH_RST, PIN_TOUCH_INT)
 static const uint32_t SCREEN_W = 240;
 static const uint32_t SCREEN_H = 240;
 
+// Backlight idle-dim levels and the status-widget refresh rate -- named
+// here since they live in the loop() a future feature is likely to touch.
+static const uint8_t BACKLIGHT_DIMMED_PCT = 8;
+static const uint8_t BACKLIGHT_FULL_PCT = 100;
+static const uint32_t STATUS_UI_REFRESH_MS = 150;
+
 static lv_disp_draw_buf_t drawBuf;
 static lv_color_t *lvBuf0 = nullptr;
 static lv_color_t *lvBuf1 = nullptr;
@@ -88,18 +94,12 @@ static void touchpadRead(lv_indev_drv_t *drv, lv_indev_data_t *data)
     }
 }
 
-void setup()
+// Must happen before touch/display init: this panel gates its
+// display/backlight power rail behind these two GPIOs (see pins.h).
+// Without this, the backlight never lights regardless of the PWM
+// value written to PIN_LCD_BACKLIGHT.
+static void initPowerRails()
 {
-    Serial.begin(115200);
-    delay(300); // give the USB-CDC serial monitor time to attach before the first prints
-    Serial.println("terraTouch boot");
-
-    Config::begin();
-
-    // Must happen before touch/display init: this panel gates its
-    // display/backlight power rail behind these two GPIOs (see pins.h).
-    // Without this, the backlight never lights regardless of the PWM
-    // value written to PIN_LCD_BACKLIGHT.
     pinMode(PIN_POWER_RAIL_1, OUTPUT);
     digitalWrite(PIN_POWER_RAIL_1, HIGH);
     pinMode(PIN_POWER_RAIL_2, OUTPUT);
@@ -107,7 +107,10 @@ void setup()
 
     pinMode(PIN_POWER_LED, OUTPUT);
     digitalWrite(PIN_POWER_LED, LOW);
+}
 
+static void initTouchAndDisplay()
+{
     touch.begin();
     Serial.println("touch.begin() done");
 
@@ -116,8 +119,6 @@ void setup()
     gfx.initDMA();
     gfx.startWrite();
     gfx.fillScreen(TFT_BLACK);
-
-    jogWheel.begin();
 
     lv_init();
 
@@ -143,6 +144,27 @@ void setup()
     indevDrv.type = LV_INDEV_TYPE_POINTER;
     indevDrv.read_cb = touchpadRead;
     lv_indev_drv_register(&indevDrv);
+}
+
+static void initWifi()
+{
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false); // matches terraPixel's note: WiFi sleep hurts responsiveness of the status stream
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    Serial.println("WiFi.begin() issued, connecting in background");
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(300); // give the USB-CDC serial monitor time to attach before the first prints
+    Serial.println("terraTouch boot");
+
+    Config::begin();
+
+    initPowerRails();
+    initTouchAndDisplay();
+    jogWheel.begin();
 
     UiNav::begin();
 
@@ -151,12 +173,39 @@ void setup()
 
     backlightInit();
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false); // matches terraPixel's note: WiFi sleep hurts responsiveness of the status stream
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    Serial.println("WiFi.begin() issued, connecting in background");
+    initWifi();
 
     Serial.println("terraTouch stage-2 bring-up ready");
+}
+
+// Backlight idle timeout: dims (not off, so the panel stays readable at a
+// glance) after N seconds of no touch AND no knob activity. 0 = never.
+// lv_disp_get_inactive_time() covers touch; jogWheel tracks its own
+// activity separately since the encoder isn't registered as an LVGL indev.
+static void updateBacklightIdle()
+{
+    static bool backlightDimmed = false;
+    uint16_t timeoutSec = Config::get().backlightTimeoutSec;
+    if (timeoutSec > 0)
+    {
+        uint32_t idleMs = min(lv_disp_get_inactive_time(NULL), jogWheel.msSinceActivity());
+        uint32_t timeoutMs = (uint32_t)timeoutSec * 1000UL;
+        if (idleMs > timeoutMs && !backlightDimmed)
+        {
+            backlightSet(BACKLIGHT_DIMMED_PCT);
+            backlightDimmed = true;
+        }
+        else if (idleMs <= timeoutMs && backlightDimmed)
+        {
+            backlightSet(BACKLIGHT_FULL_PCT);
+            backlightDimmed = false;
+        }
+    }
+    else if (backlightDimmed)
+    {
+        backlightSet(BACKLIGHT_FULL_PCT);
+        backlightDimmed = false;
+    }
 }
 
 void loop()
@@ -186,40 +235,14 @@ void loop()
     panelRing.update();
 
     static uint32_t lastStatusUiUpdate = 0;
-    if (millis() - lastStatusUiUpdate > 150)
+    if (millis() - lastStatusUiUpdate > STATUS_UI_REFRESH_MS)
     {
         lastStatusUiUpdate = millis();
         uiDialUpdate(fluidNC.status());
         uiJogUpdate(fluidNC.status());
     }
 
-    // Backlight idle timeout: dims (not off, so the panel stays readable at
-    // a glance) after N seconds of no touch AND no knob activity. 0 = never.
-    // lv_disp_get_inactive_time() covers touch; jogWheel tracks its own
-    // activity separately since the encoder isn't registered as an LVGL
-    // indev.
-    static bool backlightDimmed = false;
-    uint16_t timeoutSec = Config::get().backlightTimeoutSec;
-    if (timeoutSec > 0)
-    {
-        uint32_t idleMs = min(lv_disp_get_inactive_time(NULL), jogWheel.msSinceActivity());
-        uint32_t timeoutMs = (uint32_t)timeoutSec * 1000UL;
-        if (idleMs > timeoutMs && !backlightDimmed)
-        {
-            backlightSet(8);
-            backlightDimmed = true;
-        }
-        else if (idleMs <= timeoutMs && backlightDimmed)
-        {
-            backlightSet(100);
-            backlightDimmed = false;
-        }
-    }
-    else if (backlightDimmed)
-    {
-        backlightSet(100);
-        backlightDimmed = false;
-    }
+    updateBacklightIdle();
 
     delay(5);
 }

@@ -2,23 +2,8 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include <WebSocketsClient.h>
-#include <ArduinoJson.h>
 #include <string.h>
-#include <stdlib.h>
 #include "../config/settings.h"
-
-namespace
-{
-    bool hasGcodeExtension(const char *name)
-    {
-        size_t len = strlen(name);
-        auto endsWithCi = [&](const char *suffix) {
-            size_t slen = strlen(suffix);
-            return len >= slen && strcasecmp(name + len - slen, suffix) == 0;
-        };
-        return endsWithCi(".gcode") || endsWithCi(".nc") || endsWithCi(".g");
-    }
-}
 
 FluidNCClient fluidNC;
 
@@ -75,17 +60,7 @@ void FluidNCClient::update()
     }
 
     wsClient.loop();
-
-    // Second, independent safety net: if the "ok"/"error:" terminator never
-    // arrives at all (e.g. disconnect mid-response), don't let capture mode
-    // wait forever.
-    if (capturingFileList_ && millis() - fileListRequestedAt_ > FILE_LIST_TIMEOUT_MS)
-    {
-        Serial.println("[fluidnc] file list request timed out, aborting capture");
-        capturingFileList_ = false;
-        fileListBuffer_ = "";
-        fileListReady_ = true;
-    }
+    sdFiles_.checkTimeout();
 }
 
 void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
@@ -106,8 +81,7 @@ void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
             status_.connected = false;
             status_.mode = MachineMode::Boot;
             status_.havePos = false;
-            capturingFileList_ = false;
-            fileListBuffer_ = "";
+            sdFiles_.abort();
             break;
 
         case WStype_TEXT:
@@ -188,31 +162,15 @@ void FluidNCClient::handleLine(char *line)
     // appended to the JSON buffer (which would both corrupt the JSON and,
     // if it ever prevented us from recognizing "ok", grow the buffer
     // forever). Only non-status lines are treated as part of the capture.
-    if (capturingFileList_ && line[0] != '<')
+    if (sdFiles_.isCapturing() && line[0] != '<')
     {
         // FluidNC's JSONencoder flushes at structural boundaries (each
         // array element, each object close), so the `$SD/ListJSON` response
         // arrives as many separate lines that only form valid JSON once
-        // concatenated -- so accumulate until the trailing "ok"/"error:"
-        // that FluidNC's Channel::ack() sends after every command completes.
-        if (!strcmp(line, "ok") || !strncmp(line, "error:", 6))
-        {
-            capturingFileList_ = false;
-            parseFileListJson();
-            return;
-        }
-
-        fileListBuffer_ += line;
-        if (fileListBuffer_.length() > FILE_LIST_MAX_BYTES)
-        {
-            // Safety net: whatever is preventing the "ok"/"error:"
-            // terminator from being recognized, never let this grow
-            // unbounded and exhaust heap.
-            Serial.println("[fluidnc] file list response exceeded size cap, aborting capture");
-            capturingFileList_ = false;
-            fileListBuffer_ = "";
-            fileListReady_ = true;
-        }
+        // concatenated -- SdFileList accumulates until the trailing
+        // "ok"/"error:" that FluidNC's Channel::ack() sends after every
+        // command completes.
+        sdFiles_.feedLine(line);
         return;
     }
 
@@ -293,58 +251,10 @@ void FluidNCClient::jog(char axis, float deltaMm, float feedrate)
 
 void FluidNCClient::requestFileList()
 {
-    fileListBuffer_ = "";
-    fileListReady_ = false;
-    capturingFileList_ = true;
-    fileListRequestedAt_ = millis();
-    Serial.println("[fluidnc] requesting SD file list ($SD/ListJSON=/)");
+    sdFiles_.beginCapture();
     // Unencapsulated JSON (no [MSG:JSON:...] wrapper, unlike Files/ListGCode)
     // -- non-recursive listing of the SD root.
     sendLine("$SD/ListJSON=/");
-}
-
-void FluidNCClient::parseFileListJson()
-{
-    fileCount_ = 0;
-
-    Serial.printf("[fluidnc] file list raw response (%u bytes): %s\n",
-                  (unsigned)fileListBuffer_.length(), fileListBuffer_.c_str());
-
-    JsonDocument doc;
-    DeserializationError err = deserializeJson(doc, fileListBuffer_);
-    if (err)
-    {
-        Serial.printf("[fluidnc] file list JSON parse failed: %s\n", err.c_str());
-        fileListReady_ = true;
-        return;
-    }
-
-    for (JsonObject f : doc["files"].as<JsonArray>())
-    {
-        if (fileCount_ >= MAX_FILES) break;
-
-        const char *name = f["name"] | "";
-
-        // Observed on live hardware: this FluidNC build emits "size" as a
-        // quoted string (e.g. "size":"100181"), not a JSON number as the
-        // upstream source (FileCommands.cpp) would suggest -- accept either
-        // shape rather than trust one representation.
-        int32_t size = -1;
-        JsonVariantConst sizeVal = f["size"];
-        if (sizeVal.is<const char *>()) size = atoi(sizeVal.as<const char *>());
-        else size = sizeVal | -1;
-
-        if (size < 0) continue;              // directories: skip, flat list only
-        if (!hasGcodeExtension(name)) continue;
-
-        FluidNCFileEntry &entry = files_[fileCount_++];
-        strncpy(entry.name, name, sizeof(entry.name) - 1);
-        entry.name[sizeof(entry.name) - 1] = '\0';
-        entry.size = size;
-    }
-
-    Serial.printf("[fluidnc] file list parsed: %d g-code file(s)\n", fileCount_);
-    fileListReady_ = true;
 }
 
 void FluidNCClient::runFile(const char *filename)

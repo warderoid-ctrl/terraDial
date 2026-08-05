@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <IPAddress.h>
 #include "machine_mode.h"
+#include "sd_file_list.h"
 
 // Live state parsed out of FluidNC's realtime status reports
 // (`<State|MPos:...|WCO:...|FS:...|SD:pct,filename>`). Field meanings and
@@ -23,12 +24,6 @@ struct FluidNCStatus
     // specific FluidNC version).
     float jobPercent = -1;
     char jobFilename[48] = {0};
-};
-
-struct FluidNCFileEntry
-{
-    char name[48] = {0};
-    int32_t size = -1;
 };
 
 class FluidNCClient
@@ -63,12 +58,12 @@ public:
     // fileListCount()/fileListEntry(). Only files with a recognized G-code
     // extension are kept; directories are skipped (flat pendant list, no
     // subfolder browsing).
-    static const int MAX_FILES = 40;
+    static const int MAX_FILES = SdFileList::MAX_FILES;
     void requestFileList();
-    bool fileListReady() const { return fileListReady_; }
-    void clearFileListReady() { fileListReady_ = false; }
-    int fileListCount() const { return fileCount_; }
-    const FluidNCFileEntry &fileListEntry(int i) const { return files_[i]; }
+    bool fileListReady() const { return sdFiles_.ready(); }
+    void clearFileListReady() { sdFiles_.clearReady(); }
+    int fileListCount() const { return sdFiles_.count(); }
+    const FluidNCFileEntry &fileListEntry(int i) const { return sdFiles_.entry(i); }
 
     // Internal: bridges the C-style WebSocketsClient event callback back
     // into this instance. Public only because the trampoline needs it;
@@ -90,14 +85,7 @@ private:
     static const uint32_t MIN_JOB_MS = 5000;
     static const uint32_t CELEBRATE_MS = 12000;
 
-    bool capturingFileList_ = false;
-    uint32_t fileListRequestedAt_ = 0;
-    static const uint32_t FILE_LIST_TIMEOUT_MS = 5000;
-    static const size_t FILE_LIST_MAX_BYTES = 8192;
-    String fileListBuffer_;
-    bool fileListReady_ = false;
-    FluidNCFileEntry files_[MAX_FILES];
-    int fileCount_ = 0;
+    SdFileList sdFiles_;
 
     bool resolveHost();
     void sendRaw(const char *s);
@@ -105,7 +93,6 @@ private:
     void ingest(const char *data, size_t len);
     void handleLine(char *line);
     void applyState(const char *state);
-    void parseFileListJson();
 };
 
 extern FluidNCClient fluidNC;

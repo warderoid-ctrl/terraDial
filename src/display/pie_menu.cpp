@@ -177,6 +177,11 @@ void PieMenu::setHubTitle(const char *title, lv_color_t color)
     lv_obj_set_style_text_color(hubTitleLbl_, color, 0);
 }
 
+void PieMenu::setHubHint(const char *hint)
+{
+    lv_label_set_text(hubHintLbl_, hint);
+}
+
 void PieMenu::handleTap(lv_coord_t x, lv_coord_t y)
 {
     float dx = x - centerX_;

@@ -2,6 +2,7 @@
 #include "../config/settings.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
+#include "ui_widgets.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -146,16 +147,6 @@ namespace
         }
     }
 
-    lv_obj_t *makeRow(lv_obj_t *parent)
-    {
-        lv_obj_t *row = lv_obj_create(parent);
-        lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_style_pad_all(row, 2, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
-        return row;
-    }
 }
 
 lv_obj_t *uiSettingsCreate()
@@ -180,7 +171,7 @@ lv_obj_t *uiSettingsCreate()
     refreshHostLabels();
 
     // -- backlight timeout --
-    lv_obj_t *timeoutRow = makeRow(panel);
+    lv_obj_t *timeoutRow = uiMakeRow(panel);
     timeoutLbl = lv_label_create(timeoutRow);
     lv_obj_set_style_text_font(timeoutLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(timeoutLbl, Palette::textMuted(), 0);
@@ -198,7 +189,7 @@ lv_obj_t *uiSettingsCreate()
     }
 
     // -- pen jog distance --
-    lv_obj_t *penMmRow = makeRow(panel);
+    lv_obj_t *penMmRow = uiMakeRow(panel);
     penMmLbl = lv_label_create(penMmRow);
     lv_obj_set_style_text_font(penMmLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(penMmLbl, Palette::textMuted(), 0);
@@ -215,7 +206,7 @@ lv_obj_t *uiSettingsCreate()
     }
 
     // -- pen jog feed --
-    lv_obj_t *penFeedRow = makeRow(panel);
+    lv_obj_t *penFeedRow = uiMakeRow(panel);
     penFeedLbl = lv_label_create(penFeedRow);
     lv_obj_set_style_text_font(penFeedLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(penFeedLbl, Palette::textMuted(), 0);

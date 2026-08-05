@@ -83,4 +83,8 @@ void uiDialOpenSelected()
 void uiDialUpdate(const FluidNCStatus &st)
 {
     pieMenu.setHubTitle(textForMode(st.mode), colorForMode(st.mode));
+    // Tapping the hub while alarmed clears the alarm (see ui_nav's
+    // onDialBack) instead of doing nothing -- surface that on the hint line
+    // so it's discoverable rather than a hidden gesture.
+    pieMenu.setHubHint(st.mode == MachineMode::Alarm ? "tap to clear" : "press to open");
 }

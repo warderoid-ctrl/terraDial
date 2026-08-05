@@ -3,6 +3,7 @@
 #include "../led/panel_ring.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
+#include "ui_widgets.h"
 #include <stdio.h>
 
 namespace
@@ -17,23 +18,6 @@ namespace
     lv_obj_t *partyBtnLbl = nullptr;
 
     bool suppressEvents = false; // true while we're programmatically syncing widgets
-
-    lv_obj_t *makeRow(lv_obj_t *parent, const char *labelText)
-    {
-        lv_obj_t *row = lv_obj_create(parent);
-        lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_style_pad_all(row, 2, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
-
-        lv_obj_t *lbl = lv_label_create(row);
-        lv_label_set_text(lbl, labelText);
-        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(lbl, Palette::textMuted(), 0);
-
-        return row;
-    }
 
     void panelSliderCb(lv_event_t *e)
     {
@@ -84,7 +68,7 @@ lv_obj_t *uiLightsCreate()
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     // -- Panel ring --
-    lv_obj_t *panelRow = makeRow(panel, "Panel ring brightness");
+    lv_obj_t *panelRow = uiMakeRow(panel, "Panel ring brightness");
     panelSlider = lv_slider_create(panelRow);
     lv_obj_set_width(panelSlider, lv_pct(100));
     lv_slider_set_range(panelSlider, 0, 100);
@@ -112,17 +96,17 @@ lv_obj_t *uiLightsCreate()
     lv_obj_set_style_text_color(railModeLabel, Palette::textMuted(), 0);
     lv_obj_set_style_pad_left(railModeLabel, 6, 0);
 
-    lv_obj_t *filmRow = makeRow(panel, "Film mode");
+    lv_obj_t *filmRow = uiMakeRow(panel, "Film mode");
     filmSwitch = lv_switch_create(filmRow);
     lv_obj_add_event_cb(filmSwitch, filmSwitchCb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    lv_obj_t *railBrightRow = makeRow(panel, "Rail brightness");
+    lv_obj_t *railBrightRow = uiMakeRow(panel, "Rail brightness");
     railBrightSlider = lv_slider_create(railBrightRow);
     lv_obj_set_width(railBrightSlider, lv_pct(100));
     lv_slider_set_range(railBrightSlider, 10, 255);
     lv_obj_add_event_cb(railBrightSlider, railBrightSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
 
-    lv_obj_t *radiusRow = makeRow(panel, "Comet width");
+    lv_obj_t *radiusRow = uiMakeRow(panel, "Comet width");
     radiusSlider = lv_slider_create(radiusRow);
     lv_obj_set_width(radiusSlider, lv_pct(100));
     lv_slider_set_range(radiusSlider, 10, 80); // value/10 = LEDs (1.0-8.0)

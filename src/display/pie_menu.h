@@ -46,6 +46,11 @@ public:
     // has no notion of that.
     void setHubTitle(const char *title, lv_color_t color);
 
+    // Overrides the hub's bottom hint line (normally "press to open",
+    // reset on the next selection change) -- e.g. to signal that tapping
+    // the hub does something other than "open selected" right now.
+    void setHubHint(const char *hint);
+
 private:
     static const int MAX_ITEMS = 8;
 

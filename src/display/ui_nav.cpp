@@ -1,5 +1,6 @@
 #include "ui_nav.h"
 #include <lvgl.h>
+#include <string.h>
 #include "ui_dial.h"
 #include "ui_jog.h"
 #include "ui_files.h"
@@ -54,11 +55,27 @@ namespace
         }
     }
 
+    void alarmClearConfirmCb(lv_event_t *e)
+    {
+        lv_obj_t *mbox = lv_event_get_current_target(e);
+        const char *txt = lv_msgbox_get_active_btn_text(mbox);
+        if (txt && !strcmp(txt, "Clear")) fluidNC.clearAlarm();
+        lv_msgbox_close(mbox);
+    }
+
     void onDialBack()
     {
-        // Tapping the hub while already on the dial -- nothing to back out
+        // Tapping the hub while already on the dial: if the machine is
+        // alarmed, offer to clear it ($X) -- otherwise nothing to back out
         // of yet; reserved (e.g. for canceling an armed-but-unopened wedge
         // back to a neutral selection).
+        if (fluidNC.status().mode == MachineMode::Alarm)
+        {
+            static const char *btns[] = {"Clear", "Cancel", ""};
+            lv_obj_t *mbox = lv_msgbox_create(NULL, "Alarm", "Clear alarm state ($X)?", btns, false);
+            lv_obj_center(mbox);
+            lv_obj_add_event_cb(mbox, alarmClearConfirmCb, LV_EVENT_VALUE_CHANGED, NULL);
+        }
     }
 }
 
