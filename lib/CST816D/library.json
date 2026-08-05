@@ -1,0 +1,7 @@
+{
+  "name": "CST816D",
+  "version": "1.0.0",
+  "description": "CST816D capacitive touch driver (vendored from Elecrow CrowPanel 1.28in factory example)",
+  "frameworks": "arduino",
+  "platforms": "espressif32"
+}

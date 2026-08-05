@@ -1,0 +1,364 @@
+#include "fluidnc_client.h"
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <WebSocketsClient.h>
+#include <ArduinoJson.h>
+#include <string.h>
+#include <stdlib.h>
+#include "../config/settings.h"
+
+namespace
+{
+    bool hasGcodeExtension(const char *name)
+    {
+        size_t len = strlen(name);
+        auto endsWithCi = [&](const char *suffix) {
+            size_t slen = strlen(suffix);
+            return len >= slen && strcasecmp(name + len - slen, suffix) == 0;
+        };
+        return endsWithCi(".gcode") || endsWithCi(".nc") || endsWithCi(".g");
+    }
+}
+
+FluidNCClient fluidNC;
+
+static WebSocketsClient wsClient;
+
+// WebSocketsClient's onEvent wants a plain function pointer -- it has no
+// notion of a bound member function, so this trampoline forwards to the
+// (single) FluidNCClient instance.
+static void wsEventTrampoline(WStype_t type, uint8_t *payload, size_t length)
+{
+    fluidNC.onWsEvent((uint8_t)type, payload, length);
+}
+
+void FluidNCClient::begin()
+{
+    // mDNS is started once in main.cpp (shared with TerraPixelClient)
+    // before this is used -- nothing to do here.
+}
+
+bool FluidNCClient::resolveHost()
+{
+    IPAddress ip = MDNS.queryHost(Config::get().fluidNcHost, 2000);
+    if (ip == IPAddress((uint32_t)0)) return false;
+    resolvedIp_ = ip;
+    return true;
+}
+
+void FluidNCClient::update()
+{
+    if (WiFi.status() != WL_CONNECTED) return;
+
+    if (!wsBegun_)
+    {
+        uint32_t now = millis();
+        if (now - lastResolveAttempt_ < 3000) return;
+        lastResolveAttempt_ = now;
+
+        if (!resolveHost())
+        {
+            Serial.printf("[fluidnc] mDNS lookup for %s.local failed, retrying\n", Config::get().fluidNcHost);
+            return;
+        }
+
+        Serial.printf("[fluidnc] resolved %s.local -> %s, opening websocket\n", Config::get().fluidNcHost, resolvedIp_.toString().c_str());
+        // FluidNC's AsyncWebSocket is mounted at "/" on the same port as its
+        // HTTP server (default 80) -- there is no separate port 81 in the
+        // current FluidNC source (WebUI/WebUIServer.cpp), unlike the older
+        // ESP3D-webui convention this was originally modeled on.
+        wsClient.begin(resolvedIp_.toString().c_str(), 80, "/");
+        wsClient.onEvent(wsEventTrampoline);
+        wsClient.setReconnectInterval(3000);
+        wsBegun_ = true;
+        return;
+    }
+
+    wsClient.loop();
+
+    // Second, independent safety net: if the "ok"/"error:" terminator never
+    // arrives at all (e.g. disconnect mid-response), don't let capture mode
+    // wait forever.
+    if (capturingFileList_ && millis() - fileListRequestedAt_ > FILE_LIST_TIMEOUT_MS)
+    {
+        Serial.println("[fluidnc] file list request timed out, aborting capture");
+        capturingFileList_ = false;
+        fileListBuffer_ = "";
+        fileListReady_ = true;
+    }
+}
+
+void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
+{
+    switch (type)
+    {
+        case WStype_CONNECTED:
+            Serial.println("[fluidnc] websocket connected");
+            status_.connected = true;
+            // Re-issued on every (re)connect -- auto-reporting is per-channel
+            // and FluidNC forgets it across disconnects.
+            sendLine("$Report/Interval=100");
+            sendRaw("?");
+            break;
+
+        case WStype_DISCONNECTED:
+            Serial.println("[fluidnc] websocket disconnected");
+            status_.connected = false;
+            status_.mode = MachineMode::Boot;
+            status_.havePos = false;
+            capturingFileList_ = false;
+            fileListBuffer_ = "";
+            break;
+
+        case WStype_TEXT:
+        case WStype_BIN:
+            // FluidNC's WSChannel::write() sends status reports and command
+            // responses as binary frames (only a couple of control messages
+            // use text frames) -- both carry the same ASCII line stream, so
+            // treat them identically here.
+            ingest((const char *)payload, length);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void FluidNCClient::sendRaw(const char *s)
+{
+    if (!status_.connected) return;
+    wsClient.sendTXT(s);
+}
+
+void FluidNCClient::sendLine(const String &line)
+{
+    if (!status_.connected) return;
+    wsClient.sendTXT(line + "\n");
+}
+
+void FluidNCClient::ingest(const char *data, size_t len)
+{
+    for (size_t i = 0; i < len; i++)
+    {
+        char c = data[i];
+        if (c == '\n' || c == '\r')
+        {
+            if (lineLen_)
+            {
+                lineBuf_[lineLen_] = '\0';
+                handleLine(lineBuf_);
+                lineLen_ = 0;
+            }
+        }
+        else if (lineLen_ < sizeof(lineBuf_) - 1)
+        {
+            lineBuf_[lineLen_++] = c;
+        }
+    }
+}
+
+void FluidNCClient::applyState(const char *state)
+{
+    MachineMode next = status_.mode;
+
+    if      (!strncmp(state, "Run",   3)) next = MachineMode::Run;
+    else if (!strncmp(state, "Jog",   3)) next = MachineMode::Run;
+    else if (!strncmp(state, "Hold",  4)) next = MachineMode::Hold;
+    else if (!strncmp(state, "Door",  4)) next = MachineMode::Hold;
+    else if (!strncmp(state, "Alarm", 5)) next = MachineMode::Alarm;
+    else if (!strncmp(state, "Home",  4)) next = MachineMode::Homing;
+    else if (!strncmp(state, "Sleep", 5)) next = MachineMode::Idle;
+    else if (!strncmp(state, "Idle",  4))
+    {
+        bool wasJob = (status_.mode == MachineMode::Run) && (millis() - runStartedAt_ > MIN_JOB_MS);
+        if (wasJob) { next = MachineMode::Done; doneAt_ = millis(); }
+        else if (status_.mode == MachineMode::Done && millis() - doneAt_ < CELEBRATE_MS) next = MachineMode::Done;
+        else next = MachineMode::Idle;
+    }
+
+    if (next == MachineMode::Run && status_.mode != MachineMode::Run) runStartedAt_ = millis();
+    status_.mode = next;
+}
+
+void FluidNCClient::handleLine(char *line)
+{
+    // Auto-reporting (`$Report/Interval=100`) keeps sending realtime status
+    // lines on this same channel throughout a file-list capture -- those
+    // must still flow through to the normal status parsing below, not get
+    // appended to the JSON buffer (which would both corrupt the JSON and,
+    // if it ever prevented us from recognizing "ok", grow the buffer
+    // forever). Only non-status lines are treated as part of the capture.
+    if (capturingFileList_ && line[0] != '<')
+    {
+        // FluidNC's JSONencoder flushes at structural boundaries (each
+        // array element, each object close), so the `$SD/ListJSON` response
+        // arrives as many separate lines that only form valid JSON once
+        // concatenated -- so accumulate until the trailing "ok"/"error:"
+        // that FluidNC's Channel::ack() sends after every command completes.
+        if (!strcmp(line, "ok") || !strncmp(line, "error:", 6))
+        {
+            capturingFileList_ = false;
+            parseFileListJson();
+            return;
+        }
+
+        fileListBuffer_ += line;
+        if (fileListBuffer_.length() > FILE_LIST_MAX_BYTES)
+        {
+            // Safety net: whatever is preventing the "ok"/"error:"
+            // terminator from being recognized, never let this grow
+            // unbounded and exhaust heap.
+            Serial.println("[fluidnc] file list response exceeded size cap, aborting capture");
+            capturingFileList_ = false;
+            fileListBuffer_ = "";
+            fileListReady_ = true;
+        }
+        return;
+    }
+
+    if (line[0] != '<') return;
+
+    char *end = strpbrk(line + 1, "|>");
+    if (!end) return;
+    char saved = *end;
+    *end = '\0';
+    applyState(line + 1);
+    *end = saved;
+
+    static float wcoX = 0, wcoY = 0, wcoZ = 0;
+    char *wco = strstr(end, "WCO:");
+    if (wco) sscanf(wco + 4, "%f,%f,%f", &wcoX, &wcoY, &wcoZ);
+
+    char *wpos = strstr(end, "WPos:");
+    if (wpos)
+    {
+        sscanf(wpos + 5, "%f,%f,%f", &status_.wposX, &status_.wposY, &status_.wposZ);
+        status_.havePos = true;
+    }
+    else
+    {
+        char *mpos = strstr(end, "MPos:");
+        if (mpos)
+        {
+            float mx, my, mz;
+            sscanf(mpos + 5, "%f,%f,%f", &mx, &my, &mz);
+            status_.wposX = mx - wcoX;
+            status_.wposY = my - wcoY;
+            status_.wposZ = mz - wcoZ;
+            status_.havePos = true;
+        }
+    }
+
+    // Tentative: FluidNC's SD-job-percentage field. Confirm the exact
+    // "SD:<pct>,<filename>" syntax against your firmware build -- if it's
+    // absent or shaped differently, this just leaves jobPercent at -1.
+    char *sd = strstr(end, "SD:");
+    if (sd)
+    {
+        status_.jobPercent = atof(sd + 3);
+        char *comma = strchr(sd + 3, ',');
+        if (comma)
+        {
+            comma++;
+            size_t i = 0;
+            while (*comma && *comma != '|' && *comma != '>' && i < sizeof(status_.jobFilename) - 1)
+                status_.jobFilename[i++] = *comma++;
+            status_.jobFilename[i] = '\0';
+        }
+    }
+    else
+    {
+        status_.jobPercent = -1;
+        status_.jobFilename[0] = '\0';
+    }
+}
+
+void FluidNCClient::requestStatus() { sendRaw("?"); }
+void FluidNCClient::feedHold()      { sendRaw("!"); }
+void FluidNCClient::resume()        { sendRaw("~"); }
+void FluidNCClient::softReset()     { sendRaw("\x18"); }
+
+void FluidNCClient::home()       { sendLine("$H"); }
+void FluidNCClient::clearAlarm() { sendLine("$X"); }
+
+void FluidNCClient::jog(char axis, float deltaMm, float feedrate)
+{
+    String cmd = "$J=G91 G21 ";
+    cmd += axis;
+    cmd += String(deltaMm, 3);
+    cmd += " F";
+    cmd += String(feedrate, 0);
+    sendLine(cmd);
+}
+
+void FluidNCClient::requestFileList()
+{
+    fileListBuffer_ = "";
+    fileListReady_ = false;
+    capturingFileList_ = true;
+    fileListRequestedAt_ = millis();
+    Serial.println("[fluidnc] requesting SD file list ($SD/ListJSON=/)");
+    // Unencapsulated JSON (no [MSG:JSON:...] wrapper, unlike Files/ListGCode)
+    // -- non-recursive listing of the SD root.
+    sendLine("$SD/ListJSON=/");
+}
+
+void FluidNCClient::parseFileListJson()
+{
+    fileCount_ = 0;
+
+    Serial.printf("[fluidnc] file list raw response (%u bytes): %s\n",
+                  (unsigned)fileListBuffer_.length(), fileListBuffer_.c_str());
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, fileListBuffer_);
+    if (err)
+    {
+        Serial.printf("[fluidnc] file list JSON parse failed: %s\n", err.c_str());
+        fileListReady_ = true;
+        return;
+    }
+
+    for (JsonObject f : doc["files"].as<JsonArray>())
+    {
+        if (fileCount_ >= MAX_FILES) break;
+
+        const char *name = f["name"] | "";
+
+        // Observed on live hardware: this FluidNC build emits "size" as a
+        // quoted string (e.g. "size":"100181"), not a JSON number as the
+        // upstream source (FileCommands.cpp) would suggest -- accept either
+        // shape rather than trust one representation.
+        int32_t size = -1;
+        JsonVariantConst sizeVal = f["size"];
+        if (sizeVal.is<const char *>()) size = atoi(sizeVal.as<const char *>());
+        else size = sizeVal | -1;
+
+        if (size < 0) continue;              // directories: skip, flat list only
+        if (!hasGcodeExtension(name)) continue;
+
+        FluidNCFileEntry &entry = files_[fileCount_++];
+        strncpy(entry.name, name, sizeof(entry.name) - 1);
+        entry.name[sizeof(entry.name) - 1] = '\0';
+        entry.size = size;
+    }
+
+    Serial.printf("[fluidnc] file list parsed: %d g-code file(s)\n", fileCount_);
+    fileListReady_ = true;
+}
+
+void FluidNCClient::runFile(const char *filename)
+{
+    String cmd = "$SD/Run=";
+    cmd += filename;
+    sendLine(cmd);
+}
+
+void FluidNCClient::deleteFile(const char *filename)
+{
+    String cmd = "$SD/Delete=";
+    cmd += filename;
+    sendLine(cmd);
+}
+
+void FluidNCClient::sendGcodeLine(const char *line) { sendLine(String(line)); }

@@ -1,0 +1,111 @@
+#pragma once
+
+#include <Arduino.h>
+#include <IPAddress.h>
+#include "machine_mode.h"
+
+// Live state parsed out of FluidNC's realtime status reports
+// (`<State|MPos:...|WCO:...|FS:...|SD:pct,filename>`). Field meanings and
+// the WCO-latching approach are carried over from terraPixel's proven
+// parser (warderoid-ctrl/terraPixel, src/main.cpp) -- same math, different
+// transport (WebSocket here vs. telnet there).
+struct FluidNCStatus
+{
+    bool connected = false;
+    MachineMode mode = MachineMode::Boot;
+
+    bool havePos = false;
+    float wposX = 0, wposY = 0, wposZ = 0;
+
+    // -1 when FluidNC isn't reporting an SD job percentage (e.g. not
+    // running from SD, or this firmware build doesn't emit the field --
+    // see the plan's note on verifying the `SD:` field against your
+    // specific FluidNC version).
+    float jobPercent = -1;
+    char jobFilename[48] = {0};
+};
+
+struct FluidNCFileEntry
+{
+    char name[48] = {0};
+    int32_t size = -1;
+};
+
+class FluidNCClient
+{
+public:
+    // Call once, after WiFi is connected.
+    void begin();
+
+    // Call every loop iteration. Non-blocking: handles mDNS resolution,
+    // (re)connection, and pumping received frames.
+    void update();
+
+    const FluidNCStatus &status() const { return status_; }
+
+    // Realtime single-byte commands (sent immediately, no line buffering).
+    void requestStatus(); // '?'
+    void feedHold();      // '!'
+    void resume();        // '~'
+    void softReset();     // 0x18
+
+    // Line commands.
+    void home();                                       // $H
+    void jog(char axis, float deltaMm, float feedrate); // $J=G91 G21 <axis><delta> F<feed>
+    void clearAlarm();                                  // $X
+    void runFile(const char *filename);                 // $SD/Run=<file>
+    void deleteFile(const char *filename);              // $SD/Delete=<file>
+    void sendGcodeLine(const char *line);                // arbitrary line (pen macros, etc.)
+
+    // SD file listing. requestFileList() sends `$SD/ListJSON=/` and starts
+    // capturing the (multi-line) JSON response; poll fileListReady() and
+    // call clearFileListReady() once you've read the results via
+    // fileListCount()/fileListEntry(). Only files with a recognized G-code
+    // extension are kept; directories are skipped (flat pendant list, no
+    // subfolder browsing).
+    static const int MAX_FILES = 40;
+    void requestFileList();
+    bool fileListReady() const { return fileListReady_; }
+    void clearFileListReady() { fileListReady_ = false; }
+    int fileListCount() const { return fileCount_; }
+    const FluidNCFileEntry &fileListEntry(int i) const { return files_[i]; }
+
+    // Internal: bridges the C-style WebSocketsClient event callback back
+    // into this instance. Public only because the trampoline needs it;
+    // not part of the intended API surface.
+    void onWsEvent(uint8_t type, uint8_t *payload, size_t length);
+
+private:
+    FluidNCStatus status_;
+
+    bool wsBegun_ = false;
+    uint32_t lastResolveAttempt_ = 0;
+    IPAddress resolvedIp_;
+
+    char lineBuf_[192];
+    size_t lineLen_ = 0;
+
+    uint32_t runStartedAt_ = 0;
+    uint32_t doneAt_ = 0;
+    static const uint32_t MIN_JOB_MS = 5000;
+    static const uint32_t CELEBRATE_MS = 12000;
+
+    bool capturingFileList_ = false;
+    uint32_t fileListRequestedAt_ = 0;
+    static const uint32_t FILE_LIST_TIMEOUT_MS = 5000;
+    static const size_t FILE_LIST_MAX_BYTES = 8192;
+    String fileListBuffer_;
+    bool fileListReady_ = false;
+    FluidNCFileEntry files_[MAX_FILES];
+    int fileCount_ = 0;
+
+    bool resolveHost();
+    void sendRaw(const char *s);
+    void sendLine(const String &line);
+    void ingest(const char *data, size_t len);
+    void handleLine(char *line);
+    void applyState(const char *state);
+    void parseFileListJson();
+};
+
+extern FluidNCClient fluidNC;

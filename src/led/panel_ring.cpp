@@ -1,0 +1,137 @@
+#include "panel_ring.h"
+#include <Arduino.h>
+#include <math.h>
+#include <Adafruit_NeoPixel.h>
+#include "pins.h"
+
+PanelRing panelRing;
+
+static Adafruit_NeoPixel strip(LED_RING_COUNT, PIN_LED_RING, NEO_GRB + NEO_KHZ800);
+static uint8_t sineTab[256];
+
+// Same durations terraPixel uses for its "just finished a job" celebration.
+static const uint32_t CELEBRATE_MS = 12000;
+static const uint32_t FRAME_MS = 20; // 50fps
+
+static uint8_t sin8t(uint8_t theta) { return sineTab[theta]; }
+
+// Oscillate between lo and hi at the given bpm -- ported from terraPixel's beat().
+static uint8_t beat(uint8_t bpm, uint8_t lo, uint8_t hi)
+{
+    uint32_t phase = (millis() * bpm * 256UL) / 60000UL;
+    uint16_t v = sin8t(phase & 0xFF);
+    return lo + ((uint32_t)v * (hi - lo)) / 255;
+}
+
+static void buildSineTable()
+{
+    for (int i = 0; i < 256; i++)
+        sineTab[i] = (uint8_t)(127.5 + 127.4 * sin(i * 2.0 * PI / 256.0));
+}
+
+void PanelRing::begin()
+{
+    if (!sineTableBuilt_)
+    {
+        buildSineTable();
+        sineTableBuilt_ = true;
+    }
+    strip.begin();
+    strip.setBrightness((brightnessPct_ * 255) / 100);
+    strip.clear();
+    strip.show();
+    modeEnteredAt_ = millis();
+}
+
+void PanelRing::setMode(MachineMode mode)
+{
+    if (mode == mode_) return;
+    mode_ = mode;
+    modeEnteredAt_ = millis();
+}
+
+void PanelRing::setBrightness(uint8_t percent)
+{
+    if (percent > 100) percent = 100;
+    brightnessPct_ = percent;
+}
+
+void PanelRing::fillAll(uint8_t r, uint8_t g, uint8_t b)
+{
+    for (int i = 0; i < LED_RING_COUNT; i++) strip.setPixelColor(i, r, g, b);
+}
+
+void PanelRing::render()
+{
+    uint32_t t = millis();
+    uint8_t userBright = (brightnessPct_ * 255) / 100;
+
+    switch (mode_)
+    {
+        case MachineMode::Run:
+        {
+            // No position feed on this ring (unlike terraPixel's rail comet) --
+            // a single bright pixel chases around the 5 LEDs to read as "active".
+            strip.setBrightness(userBright);
+            fillAll(0, 0, 0);
+            int idx = (t / 120) % LED_RING_COUNT;
+            strip.setPixelColor(idx, 255, 250, 240);
+            break;
+        }
+
+        case MachineMode::Done:
+            if (t - modeEnteredAt_ > CELEBRATE_MS) { mode_ = MachineMode::Idle; modeEnteredAt_ = t; break; }
+            strip.setBrightness(beat(30, 90, 255));
+            fillAll(0, 255, 60);
+            break;
+
+        case MachineMode::Homing:
+        {
+            strip.setBrightness(userBright);
+            const uint32_t SWEEP_MS = 400, HOLD_MS = 120, GAP_MS = 120;
+            const uint32_t CYCLE_MS = SWEEP_MS + HOLD_MS + GAP_MS;
+            uint32_t phase = t % CYCLE_MS;
+            int lit;
+            if (phase < SWEEP_MS) lit = (int)((phase * (uint32_t)LED_RING_COUNT) / SWEEP_MS);
+            else if (phase < SWEEP_MS + HOLD_MS) lit = LED_RING_COUNT;
+            else lit = -1;
+            for (int i = 0; i < LED_RING_COUNT; i++)
+                strip.setPixelColor(i, i < lit ? 255 : 0, i < lit ? 90 : 0, 0);
+            break;
+        }
+
+        case MachineMode::Hold:
+            strip.setBrightness(beat(60, 60, 200));
+            fillAll(255, 130, 0);
+            break;
+
+        case MachineMode::Alarm:
+            strip.setBrightness(((t / 300) % 2) ? 200 : 20);
+            fillAll(255, 0, 0);
+            break;
+
+        case MachineMode::Boot:
+            strip.setBrightness(beat(20, 10, 50));
+            fillAll(0, 40, 255);
+            break;
+
+        case MachineMode::Idle:
+        default:
+            strip.setBrightness(userBright);
+            for (int i = 0; i < LED_RING_COUNT; i++)
+            {
+                uint8_t v = sin8t((i * 51) + (t / 24)); // 51 ~= 256/5, spread evenly
+                strip.setPixelColor(i, 40 + (v >> 2), 22 + (v >> 3), 4);
+            }
+            break;
+    }
+}
+
+void PanelRing::update()
+{
+    uint32_t now = millis();
+    if (now - lastFrameAt_ < FRAME_MS) return;
+    lastFrameAt_ = now;
+    render();
+    strip.show();
+}
