@@ -11,6 +11,19 @@
 // label so the caller can update its text later.
 lv_obj_t *uiMakeRow(lv_obj_t *parent, const char *labelText = nullptr, lv_obj_t **outLabel = nullptr);
 
+// A full-face settings-style page: fills the screen and scrolls vertically,
+// with a small accent title at the top. Used by the Settings category
+// panels and the Lights screen so they're laid out identically.
+//
+// It deliberately fills the whole 240x240 rather than sitting in an inset
+// card -- an inset left a wide dead margin and only ~142px of usable width.
+// The PADDING is what keeps content inside the round bezel, and it is
+// load-bearing: content spans y=46..184, where the face's half-width is
+// sqrt(120^2 - 74^2) = 94px, comfortably clear of the 90px the 180px content
+// column needs. Widening the content or shrinking the vertical padding will
+// start clipping rows against the curve.
+lv_obj_t *uiMakePanel(lv_obj_t *parent, const char *title);
+
 // Palette-styled controls. LVGL's built-in theme paints sliders/switches in
 // its own default blue-on-grey, which is why the Lights and Settings
 // screens looked unstyled next to the hand-styled dial/cards -- they were

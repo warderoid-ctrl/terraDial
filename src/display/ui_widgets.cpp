@@ -28,6 +28,36 @@ lv_obj_t *uiMakeRow(lv_obj_t *parent, const char *labelText, lv_obj_t **outLabel
     return row;
 }
 
+lv_obj_t *uiMakePanel(lv_obj_t *parent, const char *title)
+{
+    lv_obj_t *panel = lv_obj_create(parent);
+    lv_obj_set_size(panel, 240, 240);
+    lv_obj_center(panel);
+    lv_obj_set_style_bg_opa(panel, LV_OPA_TRANSP, 0); // the screen behind already carries the background
+    lv_obj_set_style_radius(panel, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(panel, 0, 0);
+    lv_obj_set_style_pad_hor(panel, 30, 0);
+    lv_obj_set_style_pad_top(panel, 46, 0);
+    lv_obj_set_style_pad_bottom(panel, 56, 0); // clears the back button
+    lv_obj_set_style_pad_row(panel, 8, 0);
+    lv_obj_set_scroll_dir(panel, LV_DIR_VER);
+    lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    // No scrollbar: a straight bar down the edge of a CIRCULAR panel can't
+    // hug anything, it just cuts across the face and reads as a rendering
+    // fault. Scrolling still works by knob and by drag.
+    lv_obj_set_scrollbar_mode(panel, LV_SCROLLBAR_MODE_OFF);
+
+    if (title)
+    {
+        lv_obj_t *titleLbl = lv_label_create(panel);
+        lv_label_set_text(titleLbl, title);
+        lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(titleLbl, Palette::accentSecondary(), 0);
+    }
+    return panel;
+}
+
 lv_obj_t *uiMakeSlider(lv_obj_t *parent, int32_t min, int32_t max, int32_t value)
 {
     lv_obj_t *slider = lv_slider_create(parent);

@@ -34,17 +34,10 @@ ScreenShell createScreenShell(const char *title, const char *icon)
     shell.screen = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(shell.screen, Palette::bgApp(), 0);
 
-    shell.ring = lv_arc_create(shell.screen);
-    lv_obj_set_size(shell.ring, 224, 224);
-    lv_obj_center(shell.ring);
-    lv_arc_set_bg_angles(shell.ring, 0, 360);
-    lv_arc_set_value(shell.ring, 100);
-    lv_obj_set_style_arc_color(shell.ring, Palette::border(), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(shell.ring, 3, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(shell.ring, 3, LV_PART_MAIN);
-    lv_obj_set_style_arc_color(shell.ring, Palette::bgPanel(), LV_PART_MAIN);
-    lv_obj_remove_style(shell.ring, NULL, LV_PART_KNOB);
-    lv_obj_clear_flag(shell.ring, LV_OBJ_FLAG_CLICKABLE);
+    // No decorative border arc: it drew a pale ring (Palette::border()) just
+    // inside the bezel, which read as a hard outline against the round glass
+    // rather than as framing. The screens that once used it as an "active"
+    // cue no longer exist.
 
     // Icon + title header, same position on every screen. The icon matches
     // this item's dial wedge, so opening a wedge visually "carries through"

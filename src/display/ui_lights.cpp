@@ -60,26 +60,26 @@ namespace
 
 lv_obj_t *uiLightsCreate()
 {
-    ScreenShell shell = createScreenShell("LIGHTS", LV_SYMBOL_CHARGE); // matches the dial's Lights icon
-    lv_obj_t *panel = shell.content;
-    // This screen has more rows than fit at once -- pack from the top
-    // (scrollable) rather than the shell's default vertical centering,
-    // which would start the view mid-list.
-    lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_t *scr = lv_obj_create(NULL);
+    lv_obj_set_style_bg_color(scr, Palette::bgApp(), 0);
+    lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(scr, LV_SCROLLBAR_MODE_OFF);
 
-    // -- Panel ring --
-    lv_obj_t *panelRow = uiMakeRow(panel, "Panel ring brightness");
-    panelSlider = uiMakeSlider(panelRow, 0, 100, panelRing.brightness());
-    lv_obj_add_event_cb(panelSlider, panelSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
+    // Same full-face page as a Settings category (ui_widgets.h) rather than
+    // the older inset card -- this screen has five controls and was the last
+    // one still squeezing them into ~142px of width.
+    lv_obj_t *panel = uiMakePanel(scr, "LIGHTS");
 
-    // -- terraPixel (rail) --
+    // -- rail connection state --
     lv_obj_t *railHeader = lv_obj_create(panel);
     lv_obj_set_size(railHeader, lv_pct(100), LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(railHeader, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(railHeader, 0, 0);
-    lv_obj_set_style_pad_all(railHeader, 2, 0);
+    lv_obj_set_style_pad_all(railHeader, 0, 0);
     lv_obj_set_flex_flow(railHeader, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(railHeader, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(railHeader, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(railHeader, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(railHeader, LV_SCROLLBAR_MODE_OFF);
 
     connDot = lv_obj_create(railHeader);
     lv_obj_set_size(connDot, 10, 10);
@@ -94,6 +94,12 @@ lv_obj_t *uiLightsCreate()
     lv_obj_set_style_text_color(railModeLabel, Palette::textMuted(), 0);
     lv_obj_set_style_pad_left(railModeLabel, 6, 0);
 
+    // -- panel ring (local, always available) --
+    lv_obj_t *panelRow = uiMakeRow(panel, "Panel ring brightness");
+    panelSlider = uiMakeSlider(panelRow, 0, 100, panelRing.brightness());
+    lv_obj_add_event_cb(panelSlider, panelSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
+
+    // -- terraPixel rail --
     lv_obj_t *filmRow = uiMakeRow(panel, "Film mode");
     filmSwitch = uiMakeSwitch(filmRow, false);
     lv_obj_add_event_cb(filmSwitch, filmSwitchCb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -109,7 +115,8 @@ lv_obj_t *uiLightsCreate()
     partyBtn = uiMakeButton(panel, "Party: OFF", &partyBtnLbl);
     lv_obj_add_event_cb(partyBtn, partyBtnCb, LV_EVENT_CLICKED, NULL);
 
-    return shell.screen;
+    addBackButton(scr);
+    return scr;
 }
 
 void uiLightsOnShow()

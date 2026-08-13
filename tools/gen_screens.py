@@ -275,18 +275,22 @@ def screen_home_confirm():
 def screen_lights():
     p = []
     head(p)
-    icon(p, 104, 34, "bulb", 14, TEXT_MUTED)
-    text(p, 126, 34, "LIGHTS", 12, TEXT_MUTED)
-    rows = [("Panel ring brightness", .6), ("Rail brightness", .8), ("Comet width", .35)]
-    y = 62
+    text(p, 120, 52, "LIGHTS", 12, ACCENT_SECONDARY, "600")
+    circle(p, 96, 72, 5, TEXT_FAINT)
+    text(p, 132, 72, "Rail: IDLE", 12, TEXT_MUTED)
+    rows = [("Panel ring brightness", .6), ("Rail brightness", .8)]
+    y = 92
     for lbl, frac in rows:
         text(p, 120, y, lbl, 12, TEXT_MUTED)
-        rect(p, 40, y + 12, 160, 10, 5, BG_PANEL)
-        rect(p, 40, y + 12, 160 * frac, 10, 5, ACCENT)
-        circle(p, 40 + 160 * frac, y + 17, 8, ACCENT_FG)
-        y += 40
-    rect(p, 40, y + 2, 160, 30, 15, ACCENT)
-    text(p, 120, y + 17, "Party: OFF", 12, ACCENT_FG, "600")
+        rect(p, 30, y + 10, 180, 10, 5, BG_PANEL)
+        rect(p, 30, y + 10, 180 * frac, 10, 5, ACCENT)
+        circle(p, 30 + 180 * frac, y + 15, 8, ACCENT_FG)
+        y += 38
+    text(p, 120, y, "Film mode", 12, TEXT_MUTED)
+    rect(p, 98, y + 10, 44, 24, 12, BG_PANEL)
+    circle(p, 110, y + 22, 9, ACCENT_FG)
+    rect(p, 30, y + 44, 180, 30, 15, ACCENT)
+    text(p, 120, y + 59, "Party: OFF", 12, ACCENT_FG, "600")
     back_button(p)
     tail(p)
     return "lights", p

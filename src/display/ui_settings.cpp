@@ -87,48 +87,12 @@ namespace
         RadialKeyboard::open(title, target, targetSize - 1, isPassword, editAccepted, editCancelled);
     }
 
-    // A category's control panel: fills the whole face and scrolls
-    // vertically, hidden until its category is opened.
-    //
-    // It used to be a 186px circle inset inside the 240px screen, which left
-    // a wide dead margin and only ~142px of usable width. Filling the screen
-    // and controlling the usable area with PADDING instead is worth ~40px
-    // more width.
-    //
-    // The padding is what keeps content inside the round bezel, so it isn't
-    // arbitrary: content spans y=46..184, and the panel's half-width at
-    // those extremes is sqrt(120^2 - 74^2) = 94px, comfortably clear of the
-    // 90px half-width the 180px content column needs. Widening the content
-    // or shrinking the vertical padding will start clipping rows against the
-    // curve at the top and bottom.
+    // A category's control panel -- the shared full-face page (see
+    // ui_widgets.h), hidden until its category is opened.
     lv_obj_t *makeCardShell(const char *title)
     {
-        lv_obj_t *card = lv_obj_create(screenRoot);
-        lv_obj_set_size(card, 240, 240);
-        lv_obj_center(card);
+        lv_obj_t *card = uiMakePanel(screenRoot, title);
         lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_bg_opa(card, LV_OPA_TRANSP, 0); // the screen behind it already carries the background
-        lv_obj_set_style_radius(card, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(card, 0, 0);
-        lv_obj_set_style_pad_hor(card, 30, 0);
-        lv_obj_set_style_pad_top(card, 46, 0);
-        lv_obj_set_style_pad_bottom(card, 56, 0); // clears the back button
-        lv_obj_set_style_pad_row(card, 8, 0);
-        lv_obj_set_scroll_dir(card, LV_DIR_VER);
-        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-        // No scrollbar. A straight bar down the edge of a CIRCULAR panel
-        // can't hug anything -- it just cuts across the face and reads as a
-        // rendering fault. Scrolling still works by knob and by drag; the
-        // bar was only ever an indicator, and a misleading one here.
-        lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
-
-        lv_obj_t *titleLbl = lv_label_create(card);
-        lv_label_set_text(titleLbl, title);
-        lv_obj_set_style_text_font(titleLbl, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(titleLbl, Palette::accentSecondary(), 0);
-
         return card;
     }
 
