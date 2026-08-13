@@ -276,21 +276,18 @@ def screen_lights():
     p = []
     head(p)
     text(p, 120, 52, "LIGHTS", 12, ACCENT_SECONDARY, "600")
-    circle(p, 96, 72, 5, TEXT_FAINT)
-    text(p, 132, 72, "Rail: IDLE", 12, TEXT_MUTED)
-    rows = [("Panel ring brightness", .6), ("Rail brightness", .8)]
-    y = 92
-    for lbl, frac in rows:
-        text(p, 120, y, lbl, 12, TEXT_MUTED)
-        rect(p, 30, y + 10, 180, 10, 5, BG_PANEL)
-        rect(p, 30, y + 10, 180 * frac, 10, 5, ACCENT)
-        circle(p, 30 + 180 * frac, y + 15, 8, ACCENT_FG)
-        y += 38
-    text(p, 120, y, "Film mode", 12, TEXT_MUTED)
-    rect(p, 98, y + 10, 44, 24, 12, BG_PANEL)
-    circle(p, 110, y + 22, 9, ACCENT_FG)
-    rect(p, 30, y + 44, 180, 30, 15, ACCENT)
-    text(p, 120, y + 59, "Party: OFF", 12, ACCENT_FG, "600")
+    text(p, 120, 74, "Film mode", 12, TEXT_MUTED)
+    rect(p, 98, 84, 44, 24, 12, BG_PANEL)
+    circle(p, 110, 96, 9, ACCENT_FG)
+    text(p, 120, 122, "Rail brightness", 12, TEXT_MUTED)
+    rect(p, 30, 132, 180, 10, 5, BG_PANEL)
+    rect(p, 30, 132, 180 * .78, 10, 5, ACCENT)
+    circle(p, 30 + 180 * .78, 137, 8, ACCENT_FG)
+    text(p, 120, 160, "Rail when asleep", 12, TEXT_MUTED)
+    for i, (lbl, sel) in enumerate((("On", 1), ("Dim", 0), ("Off", 0))):
+        x = 42 + i * 54
+        rect(p, x, 170, 48, 26, 13, ACCENT if sel else BG_PANEL)
+        text(p, x + 24, 183, lbl, 12, ACCENT_FG if sel else TEXT_MUTED, "600")
     back_button(p)
     tail(p)
     return "lights", p

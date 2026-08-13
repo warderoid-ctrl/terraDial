@@ -28,6 +28,25 @@
 #define PIN_LED_RING 48
 #define LED_RING_COUNT 5
 
+// ---- terraPen rail light strip (WS2812, GRB) ----
+// The panel mounts on the plotter beside the rail, so it drives the rail
+// strip directly -- this replaced a separate ESP32-C3 (terraPixel) that used
+// to do it over HTTP. See src/led/rail_leds.h.
+//
+// PIN_RAIL_LEDS must be a GPIO actually broken out on your mount. GPIO4 is
+// free in this firmware and matches the pin terraPixel used, so existing
+// wiring habits carry over -- but CHECK IT against the pin your connector
+// exposes before wiring up.
+//
+// Electrical notes that matter more than the pin choice:
+//   * the strip needs its own 5V feed with a common ground back to the panel
+//     -- do not pull strip current through the panel's regulator
+//   * WS2812s at 5V want ~3.5V for a logic high and the S3 drives 3.3V. Over
+//     a short run this usually works; if the first LED misbehaves, add a
+//     74AHCT125 level shifter or drop the strip to ~4.5V
+#define PIN_RAIL_LEDS 4
+#define RAIL_LED_COUNT 39
+
 // ---- Power indicator LED ----
 #define PIN_POWER_LED 40
 

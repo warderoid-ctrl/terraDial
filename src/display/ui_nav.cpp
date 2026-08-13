@@ -135,12 +135,10 @@ namespace UiNav
     {
         checkAutoNav();
 
-        // uiLightsUpdate() makes a blocking HTTP call to terraPixel (up to
-        // ~1s, plus an mDNS lookup if it's unreachable) every 3 seconds. It
-        // used to run unconditionally from loop() on EVERY screen, so the
-        // whole panel froze periodically even sitting on the dial -- and
-        // worst of all when terraPixel wasn't on the network at all. It only
-        // has anything to display while Lights is actually visible.
+        // Only meaningful while Lights is visible. It's cheap now that the
+        // rail is driven locally (it used to be a blocking HTTP poll to a
+        // separate controller, which froze the panel periodically on EVERY
+        // screen), but there's still nothing to refresh when it's off-screen.
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsUpdate();
 
         int32_t delta = jogWheel.takeRotationDelta();

@@ -70,8 +70,9 @@ void PanelRing::render()
     {
         case MachineMode::Run:
         {
-            // No position feed on this ring (unlike terraPixel's rail comet) --
-            // a single bright pixel chases around the 5 LEDs to read as "active".
+            // No position feed on this ring (unlike the rail comet in
+            // rail_leds.cpp) -- a single bright pixel chases around the 5
+            // LEDs to read as "active".
             strip.setBrightness(userBright);
             fillAll(0, 0, 0);
             int step = (int)((t / 120) % LED_RING_COUNT);

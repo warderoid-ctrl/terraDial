@@ -5,9 +5,11 @@ Elecrow CrowPanel 1.28" round display — a 240×240 touchscreen with a rotary
 knob. It talks to [FluidNC](http://wiki.fluidnc.com/) over a WebSocket, so
 the plotter can be driven from the bench without a laptop or phone.
 
-Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
-(desktop app — and the source of this panel's colour palette) and terraPixel
-(the rail lighting controller this panel can also drive).
+Sibling project: [terraForge](https://github.com/theworkisthework/terraForge)
+(desktop app — and the source of this panel's colour palette). The rail
+lighting was previously a separate ESP32-C3 running
+[terraPixel](https://github.com/warderoid-ctrl/terraPixel); its behaviour is
+now ported into this firmware, since the panel mounts beside the strip.
 
 ## What it does
 
@@ -15,7 +17,8 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 - **Run G-code** straight off the plotter's SD card, with live job progress
 - **Pen up/down**, **homing** (with a clear-the-bed confirmation), **E-Stop**
   and **alarm clear**
-- **Rail lighting** control via terraPixel — brightness, film mode, comet width
+- **Rail lighting** driven directly — a warm-white comet that follows the
+  carriage, per-mode status animations, film mode and party mode
 - **On-device Wi-Fi setup**: scan for networks, pick one, type the password
 - **Machine status** shown on the panel's 5-LED ring, readable across the room
 - **Sleep mode** so the panel isn't glowing at you through a multi-hour plot
@@ -43,7 +46,7 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 | Display | GC9A01 240×240 round IPS, SPI |
 | Touch | CST816D capacitive, I²C |
 | Input | EC11-style rotary encoder with push switch |
-| LEDs | 5× WS2812 ring around the bezel |
+| LEDs | 5× WS2812 ring around the bezel, plus the 39-LED rail strip |
 
 Pin assignments are in [`include/pins.h`](include/pins.h), confirmed against
 Elecrow's factory example for this exact board rather than guessed.
@@ -100,8 +103,8 @@ src/
   config/        NVS-backed settings
   display/       all UI screens and shared widgets
   input/         encoder driver
-  led/           WS2812 status ring
-  net/           FluidNC WebSocket client, terraPixel HTTP client, Wi-Fi
+  led/           WS2812 bezel ring and rail strip
+  net/           FluidNC WebSocket client, Wi-Fi
 tools/           icon and screen-illustration generation
 design_handoff_radial_dial_ui/   UI mockups the layout follows
 ```
