@@ -24,8 +24,9 @@ namespace Config
 
         copyToBuf(settings.fluidNcHost, sizeof(settings.fluidNcHost), prefs.getString("fncHost", FLUIDNC_HOST));
         copyToBuf(settings.terraPixelHost, sizeof(settings.terraPixelHost), prefs.getString("tpHost", TERRAPIXEL_HOST));
-        settings.backlightTimeoutSec = prefs.getUShort("blTimeout", 60);
+        settings.sleepTimeoutSec = prefs.getUShort("sleepSec", 300); // 5 min
         settings.backlightBrightnessPct = prefs.getUChar("blBright", 100);
+        settings.sleepLedBrightnessPct = prefs.getUChar("sleepLed", 50);
         settings.invertMenuRotation = prefs.getBool("invMenuRot", false);
         settings.penJogMm = prefs.getFloat("penMm", PEN_JOG_MM);
         settings.penJogFeed = prefs.getFloat("penFeed", PEN_JOG_FEED);
@@ -39,8 +40,9 @@ namespace Config
     {
         prefs.putString("fncHost", settings.fluidNcHost);
         prefs.putString("tpHost", settings.terraPixelHost);
-        prefs.putUShort("blTimeout", settings.backlightTimeoutSec);
+        prefs.putUShort("sleepSec", settings.sleepTimeoutSec);
         prefs.putUChar("blBright", settings.backlightBrightnessPct);
+        prefs.putUChar("sleepLed", settings.sleepLedBrightnessPct);
         prefs.putBool("invMenuRot", settings.invertMenuRotation);
         prefs.putFloat("penMm", settings.penJogMm);
         prefs.putFloat("penFeed", settings.penJogFeed);

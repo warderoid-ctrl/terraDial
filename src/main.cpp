@@ -10,8 +10,8 @@
 #include "display/ui_lights.h"
 #include "display/ui_settings.h"
 #include "display/ui_job_progress.h"
+#include "display/screen_sleep.h"
 #include "input/encoder.h"
-#include "input/lvgl_encoder.h"
 #include "led/panel_ring.h"
 #include "net/fluidnc_client.h"
 #include "net/wifi_manager.h"
@@ -28,12 +28,8 @@ static CST816D touch(PIN_TOUCH_SDA, PIN_TOUCH_SCL, PIN_TOUCH_RST, PIN_TOUCH_INT)
 static const uint32_t SCREEN_W = 240;
 static const uint32_t SCREEN_H = 240;
 
-// Backlight idle-dim levels and the status-widget refresh rate -- named
-// here since they live in the loop() a future feature is likely to touch.
-static const uint8_t BACKLIGHT_DIMMED_PCT = 8;
 // "Full" is whatever the user set on the Settings > Display brightness
-// slider, not a fixed 100 -- otherwise waking from the idle dim would
-// silently override their choice.
+// slider, not a fixed 100.
 static uint8_t backlightFullPct() { return Config::get().backlightBrightnessPct; }
 static const uint32_t STATUS_UI_REFRESH_MS = 150; // back to the original value -- chasing lower latency here was adding background redraw/network load the ESP32 didn't have to spare
 
@@ -43,10 +39,20 @@ static lv_color_t *lvBuf1 = nullptr;
 
 static void dispFlush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colorP)
 {
-    if (gfx.getStartCount() > 0) gfx.endWrite();
-    gfx.pushImageDMA(area->x1, area->y1,
-                      area->x2 - area->x1 + 1, area->y2 - area->y1 + 1,
-                      (lgfx::rgb565_t *)&colorP->full);
+    // pushImageDMA() returns as soon as the transfer is QUEUED, not when the
+    // pixels have landed. The previous version signalled lv_disp_flush_ready()
+    // straight afterwards, so LVGL was free to start rendering the next frame
+    // into a buffer the DMA engine was still reading -- which is exactly what
+    // fast scrolling looked like: torn, half-updated frames.
+    //
+    // startWrite/endWrite brackets the transfer and endWrite() waits for DMA
+    // to drain, so the buffer is genuinely free by the time we report done.
+    uint32_t w = area->x2 - area->x1 + 1;
+    uint32_t h = area->y2 - area->y1 + 1;
+    gfx.startWrite();
+    gfx.setAddrWindow(area->x1, area->y1, w, h);
+    gfx.writePixels((lgfx::rgb565_t *)&colorP->full, w * h);
+    gfx.endWrite();
     lv_disp_flush_ready(disp);
 }
 
@@ -81,20 +87,33 @@ static void rotateTouchCoords(uint16_t &x, uint16_t &y)
 
 static void touchpadRead(lv_indev_drv_t *drv, lv_indev_data_t *data)
 {
+    // Held for the whole duration of a press that merely woke the panel, so
+    // LVGL never sees it. Without the latch only the first read would be
+    // swallowed and the rest of the same press would land on whatever
+    // happened to be under the finger.
+    static bool swallowUntilRelease = false;
+
     uint16_t x, y;
     uint8_t gesture;
     bool touched = touch.getTouch(&x, &y, &gesture);
     if (!touched)
     {
+        swallowUntilRelease = false;
         data->state = LV_INDEV_STATE_REL;
+        return;
     }
-    else
+
+    if (ScreenSleep::noteInputAndWake()) swallowUntilRelease = true;
+    if (swallowUntilRelease)
     {
-        rotateTouchCoords(x, y);
-        data->state = LV_INDEV_STATE_PR;
-        data->point.x = x;
-        data->point.y = y;
+        data->state = LV_INDEV_STATE_REL;
+        return;
     }
+
+    rotateTouchCoords(x, y);
+    data->state = LV_INDEV_STATE_PR;
+    data->point.x = x;
+    data->point.y = y;
 }
 
 // Must happen before touch/display init: this panel gates its
@@ -122,6 +141,12 @@ static void initTouchAndDisplay()
     gfx.initDMA();
     gfx.startWrite();
     gfx.fillScreen(TFT_BLACK);
+    // Balance the startWrite above. It used to be left dangling, which the
+    // old dispFlush() compensated for by calling endWrite() on entry -- with
+    // dispFlush now bracketing its own transfers, an unmatched count here
+    // would leave every frame's endWrite() one level short of actually
+    // waiting for DMA.
+    gfx.endWrite();
 
     lv_init();
 
@@ -147,11 +172,6 @@ static void initTouchAndDisplay()
     indevDrv.type = LV_INDEV_TYPE_POINTER;
     indevDrv.read_cb = touchpadRead;
     lv_indev_drv_register(&indevDrv);
-
-    // Second indev: the knob, as an LVGL encoder. Dormant unless a screen
-    // explicitly captures it (today: the WiFi keyboard) -- see
-    // input/lvgl_encoder.h.
-    LvglEncoder::begin();
 }
 
 // Everything network-related runs here, on core 0, NOT in loop().
@@ -203,6 +223,7 @@ void setup()
     panelRing.setMode(MachineMode::Boot);
 
     backlightInit();
+    ScreenSleep::begin();
     backlightSet(backlightFullPct()); // backlightInit() defaults to full -- honour the saved level
 
     fluidNC.initTransport(); // command queue must exist before the UI can enqueue
@@ -210,36 +231,6 @@ void setup()
     startNetworkTask();
 
     Serial.println("terraTouch stage-2 bring-up ready");
-}
-
-// Backlight idle timeout: dims (not off, so the panel stays readable at a
-// glance) after N seconds of no touch AND no knob activity. 0 = never.
-// lv_disp_get_inactive_time() covers touch; jogWheel tracks its own
-// activity separately since the encoder isn't registered as an LVGL indev.
-static void updateBacklightIdle()
-{
-    static bool backlightDimmed = false;
-    uint16_t timeoutSec = Config::get().backlightTimeoutSec;
-    if (timeoutSec > 0)
-    {
-        uint32_t idleMs = min(lv_disp_get_inactive_time(NULL), jogWheel.msSinceActivity());
-        uint32_t timeoutMs = (uint32_t)timeoutSec * 1000UL;
-        if (idleMs > timeoutMs && !backlightDimmed)
-        {
-            backlightSet(BACKLIGHT_DIMMED_PCT);
-            backlightDimmed = true;
-        }
-        else if (idleMs <= timeoutMs && backlightDimmed)
-        {
-            backlightSet(backlightFullPct());
-            backlightDimmed = false;
-        }
-    }
-    else if (backlightDimmed)
-    {
-        backlightSet(backlightFullPct());
-        backlightDimmed = false;
-    }
 }
 
 void loop()
@@ -266,7 +257,7 @@ void loop()
         uiJobProgressUpdate(fluidNC.status());
     }
 
-    updateBacklightIdle();
+    ScreenSleep::update();
 
     // Restored to the original 5ms -- cutting it chasing lower input latency
     // left the WiFi/BT background task (and the I2C touch driver's own

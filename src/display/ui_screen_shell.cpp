@@ -89,6 +89,11 @@ ScreenShell createScreenShell(const char *title, const char *icon)
     // a taste issue).
     lv_obj_set_flex_align(shell.content, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scroll_dir(shell.content, LV_DIR_VER);
+    // See ui_settings.cpp: a straight scrollbar across a round panel reads
+    // as a rendering fault, and scrolling works fine without it.
+    lv_obj_set_scrollbar_mode(shell.content, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(shell.screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(shell.screen, LV_SCROLLBAR_MODE_OFF);
 
     addBackButton(shell.screen);
 

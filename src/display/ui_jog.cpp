@@ -22,7 +22,8 @@ namespace
     lv_obj_t *stepChips[JOG_STEP_COUNT] = {nullptr};
     lv_obj_t *stepChipLbls[JOG_STEP_COUNT] = {nullptr};
     lv_obj_t *posLabel = nullptr;
-    lv_obj_t *axisSubLabel = nullptr;
+    lv_obj_t *setZeroBtn = nullptr;
+    lv_obj_t *setZeroLbl = nullptr;
 
     void restyleChips()
     {
@@ -47,9 +48,9 @@ namespace
             lv_obj_set_style_text_color(stepChipLbls[i], sel ? Palette::accentFg() : Palette::textMuted(), 0);
         }
 
-        char subBuf[16];
-        snprintf(subBuf, sizeof(subBuf), "%s position", AXIS_NAMES[axisIndex]);
-        lv_label_set_text(axisSubLabel, subBuf);
+        char zeroBuf[20];
+        snprintf(zeroBuf, sizeof(zeroBuf), "Set %s zero", AXIS_NAMES[axisIndex]);
+        lv_label_set_text(setZeroLbl, zeroBuf);
     }
 
     void setAxis(int idx)
@@ -70,6 +71,19 @@ namespace
 
     void axisChipCb(lv_event_t *e) { setAxis((int)(intptr_t)lv_event_get_user_data(e)); }
     void stepChipCb(lv_event_t *e) { setStep((int)(intptr_t)lv_event_get_user_data(e)); }
+
+    void setZeroCb(lv_event_t *e)
+    {
+        (void)e;
+        // G10 L20 P0 <axis>0 = "the current position of this axis is now
+        // zero in the active work coordinate system". P0 means the WCS
+        // currently in effect, so this follows whatever G54-G59 is active
+        // rather than assuming G54. Only the selected axis is touched --
+        // the others keep their existing offsets.
+        char cmd[24];
+        snprintf(cmd, sizeof(cmd), "G10 L20 P0 %s0", AXIS_NAMES[axisIndex]);
+        fluidNC.sendGcodeLine(cmd);
+    }
 }
 
 lv_obj_t *uiJogCreate()
@@ -104,14 +118,31 @@ lv_obj_t *uiJogCreate()
 
     posLabel = lv_label_create(scr);
     lv_obj_set_style_text_font(posLabel, &lv_font_montserrat_32, 0);
-    lv_obj_set_style_text_color(posLabel, lv_color_white(), 0);
-    lv_obj_align(posLabel, LV_ALIGN_CENTER, 0, -22);
+    lv_obj_set_style_text_color(posLabel, Palette::text(), 0);
+    lv_obj_align(posLabel, LV_ALIGN_CENTER, 0, -30);
     lv_label_set_text(posLabel, "--");
 
-    axisSubLabel = lv_label_create(scr);
-    lv_obj_set_style_text_font(axisSubLabel, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(axisSubLabel, Palette::textMuted(), 0);
-    lv_obj_align_to(axisSubLabel, posLabel, LV_ALIGN_OUT_BOTTOM_MID, 0, 4);
+    // No "X position" caption under the readout: the highlighted axis chip
+    // above already says which axis this is, so it was restating the UI at
+    // the cost of the vertical space Set Zero needed.
+
+    // Zeroes whichever axis is currently selected, so each axis gets its own
+    // "set zero" without needing three separate buttons competing for space.
+    // Label updates with the axis (see restyleChips) so it always states
+    // exactly what it will do.
+    setZeroBtn = lv_btn_create(scr);
+    lv_obj_set_size(setZeroBtn, 92, 24);
+    lv_obj_set_style_radius(setZeroBtn, 12, 0);
+    lv_obj_set_style_bg_color(setZeroBtn, Palette::bgSecondary(), 0);
+    lv_obj_set_style_bg_color(setZeroBtn, Palette::accent(), LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_width(setZeroBtn, 0, 0);
+    lv_obj_set_ext_click_area(setZeroBtn, 6);
+    lv_obj_align(setZeroBtn, LV_ALIGN_CENTER, 0, 10);
+    lv_obj_add_event_cb(setZeroBtn, setZeroCb, LV_EVENT_CLICKED, NULL);
+    setZeroLbl = lv_label_create(setZeroBtn);
+    lv_obj_set_style_text_font(setZeroLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(setZeroLbl, Palette::textMuted(), 0);
+    lv_obj_center(setZeroLbl);
 
     lv_obj_t *stepRow = lv_obj_create(scr);
     lv_obj_set_size(stepRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
@@ -120,7 +151,7 @@ lv_obj_t *uiJogCreate()
     lv_obj_clear_flag(stepRow, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(stepRow, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(stepRow, 6, 0);
-    lv_obj_align(stepRow, LV_ALIGN_BOTTOM_MID, 0, -48);
+    lv_obj_align(stepRow, LV_ALIGN_BOTTOM_MID, 0, -52); // clears the Set Zero button above
 
     for (int i = 0; i < JOG_STEP_COUNT; i++)
     {

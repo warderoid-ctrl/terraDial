@@ -11,7 +11,8 @@
 #include "ui_estop.h"
 #include "ui_alarm_clear.h"
 #include "../input/encoder.h"
-#include "../input/lvgl_encoder.h"
+#include "radial_keyboard.h"
+#include "screen_sleep.h"
 #include "../net/fluidnc_client.h"
 #include "../config/settings.h"
 
@@ -55,7 +56,7 @@ namespace
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsOnShow();
     }
 
-    // Maps a Home carousel card index to what opening it does. Order
+    // Maps a Home ring item index to what opening it does. Order
     // matches ui_dial.cpp's DIAL_ITEMS: Jobs, Jog, Pen, Lights, Home,
     // E-Stop, Alarm, Settings.
     void onDialOpen(int cardIndex)
@@ -142,14 +143,29 @@ namespace UiNav
         // has anything to display while Lights is actually visible.
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsUpdate();
 
-        // Something on screen (the WiFi keyboard) is driving itself from the
-        // knob right now. Return before touching jogWheel: its take*()
-        // methods are destructive reads, so consuming them here would steal
-        // the very events LVGL's encoder indev is waiting for.
-        if (LvglEncoder::isCaptured()) return;
-
         int32_t delta = jogWheel.takeRotationDelta();
         ButtonEvent ev = jogWheel.takeButtonEvent();
+
+        // Waking the panel must not do anything else. Both events were
+        // already consumed by the take*() calls above, so returning here
+        // discards them -- the turn or click that lit the screen can't also
+        // jog an axis or open a menu.
+        if (delta != 0 || ev != ButtonEvent::None)
+        {
+            if (ScreenSleep::noteInputAndWake()) return;
+        }
+
+        // The radial keyboard is modal and owns the knob outright while it's
+        // up: rotate moves the highlighted key, click types it, long-press
+        // cancels. Nothing below runs, so no screen can navigate out from
+        // under an open text field.
+        if (RadialKeyboard::isOpen())
+        {
+            if (delta != 0) RadialKeyboard::handleRotate(delta);
+            if (ev == ButtonEvent::Click) RadialKeyboard::handleClick();
+            else if (ev == ButtonEvent::LongPress) RadialKeyboard::handleLongPress();
+            return;
+        }
 
         // Menu-navigation direction preference (Settings > Display). Applied
         // here so every browsing surface (dial, Jobs, Settings) agrees --
@@ -204,7 +220,12 @@ namespace UiNav
         if (currentIndex == SETTINGS_SCREEN_INDEX)
         {
             if (menuDelta != 0) uiSettingsHandleRotate(menuDelta);
-            if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            if (ev == ButtonEvent::Click) uiSettingsHandleClick();
+            // Settings is two levels deep (category ring -> that category's
+            // controls), so back steps out of an open category first and
+            // only leaves the screen once the ring is showing.
+            else if (ev == ButtonEvent::LongPress && !uiSettingsHandleBack())
+                goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
             return;
         }
 

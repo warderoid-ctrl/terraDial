@@ -1,31 +1,51 @@
 #include "ui_settings.h"
 #include "../config/settings.h"
 #include "../net/wifi_manager.h"
-#include "carousel.h"
+#include "radial_ring.h"
+#include "ui_nav.h"
 #include "palette.h"
 #include "ui_widgets.h"
-#include "ui_screen_shell.h"
 #include "lgfx_config.h" // backlightSet()
-#include "../input/lvgl_encoder.h"
+#include "radial_keyboard.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
 
-// Settings: a 4-card carousel (Wi-Fi, Machine, Display, About), replacing
-// the old single scrolling list. Wi-Fi is new -- on-device SSID/password
-// entry reusing the exact edit-overlay/keyboard pattern the hostname
-// fields already used. Machine/Display carry over today's real settings
-// unchanged; About shows real, always-available diagnostics (hostname/IP/
-// uptime) rather than a fabricated version string, since none exists.
+// Settings: a radial ring of four categories (Wi-Fi, Machine, Display,
+// About), matching Home and Jobs. Selecting one swaps the ring out for that
+// category's controls; back returns to the ring.
+//
+// It was a carousel of four permanently-visible cards -- the last screen
+// still using a different browsing idiom, and a card big enough to hold
+// several controls leaves nothing to peek at, so the carousel earned
+// nothing over a ring. Splitting into "pick a category, then see its
+// controls" also gives each control the full width of the panel.
+//
+// The four panels are built once and kept hidden rather than created on
+// demand: the label pointers below (wifiStatusLbl, aboutIpLbl, ...) are
+// refreshed every loop by uiSettingsUpdate(), and destroying the panels
+// would leave those dangling.
 namespace
 {
     lv_obj_t *screenRoot = nullptr;
-    Carousel carousel;
+    RadialRing ring;
+    lv_obj_t *hub = nullptr;
+    lv_obj_t *hubNameLbl = nullptr;
+    lv_obj_t *hubHintLbl = nullptr;
 
-    // -- shared text-entry overlay (keyboard + textarea), opened on
-    // lv_layer_top() so it floats above whichever card is current --
-    lv_obj_t *editOverlay = nullptr;
-    lv_obj_t *editTextarea = nullptr;
+    const int CATEGORY_COUNT = 4;
+    lv_obj_t *panels[CATEGORY_COUNT] = {nullptr};
+    int openPanel = -1; // -1 = showing the ring
+
+    const char *CATEGORY_NAMES[CATEGORY_COUNT] = {"Wi-Fi", "Machine", "Display", "About"};
+    const char *CATEGORY_ICONS[CATEGORY_COUNT] = {
+        LV_SYMBOL_WIFI, LV_SYMBOL_DRIVE, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LIST};
+
+    // -- shared text entry --
+    // Delegates to the radial keyboard (display/radial_keyboard.h) rather
+    // than owning an lv_keyboard overlay: on a 240px round panel a QWERTY
+    // map's keys are narrower than a fingertip, so text entry is knob-first
+    // here.
     char *editTarget = nullptr;
     size_t editTargetSize = 0;
     void (*editOnSaved)() = nullptr;
@@ -34,147 +54,75 @@ namespace
     // always attempt a reconnect on the way out, so canceling never just
     // leaves the radio silently disconnected (see runScan()'s comment).
     void (*editOnClosed)() = nullptr;
-    lv_group_t *editGroup = nullptr; // knob focus group while the keyboard is up
 
-    void closeEditor()
+    void fireOnClosed()
     {
-        // Hand the knob back to ui_nav BEFORE deleting the widgets it's
-        // focused on, so nothing is left pointing at freed objects.
-        LvglEncoder::release();
-        if (editGroup)
-        {
-            lv_group_del(editGroup);
-            editGroup = nullptr;
-        }
-        if (editOverlay)
-        {
-            lv_obj_del(editOverlay);
-            editOverlay = nullptr;
-            editTextarea = nullptr;
-        }
-        if (editOnClosed)
-        {
-            void (*cb)() = editOnClosed;
-            editOnClosed = nullptr;
-            cb();
-        }
+        if (!editOnClosed) return;
+        void (*cb)() = editOnClosed;
+        editOnClosed = nullptr;
+        cb();
     }
 
-    void keyboardEventCb(lv_event_t *e)
+    void editAccepted(const char *text)
     {
-        lv_event_code_t code = lv_event_get_code(e);
-        if (code == LV_EVENT_READY)
+        if (editTarget && editTargetSize > 0)
         {
-            if (editTarget && editTargetSize > 0)
-            {
-                const char *txt = lv_textarea_get_text(editTextarea);
-                strncpy(editTarget, txt, editTargetSize - 1);
-                editTarget[editTargetSize - 1] = '\0';
-                Config::save();
-                if (editOnSaved) editOnSaved();
-            }
-            closeEditor();
+            strncpy(editTarget, text, editTargetSize - 1);
+            editTarget[editTargetSize - 1] = '\0';
+            Config::save();
+            if (editOnSaved) editOnSaved();
         }
-        else if (code == LV_EVENT_CANCEL)
-        {
-            closeEditor();
-        }
+        fireOnClosed();
     }
 
-    void cancelBtnCb(lv_event_t *e) { (void)e; closeEditor(); }
+    void editCancelled() { fireOnClosed(); }
 
-    void openEditor(char *target, size_t targetSize, void (*onSaved)(), bool isPassword, void (*onClosed)() = nullptr)
+    void openEditor(char *target, size_t targetSize, void (*onSaved)(), bool isPassword,
+                    void (*onClosed)() = nullptr, const char *title = "Edit")
     {
         editTarget = target;
         editTargetSize = targetSize;
         editOnSaved = onSaved;
         editOnClosed = onClosed;
-
-        editOverlay = lv_obj_create(lv_layer_top());
-        lv_obj_set_size(editOverlay, 240, 240);
-        lv_obj_set_style_bg_color(editOverlay, Palette::bgApp(), 0);
-        lv_obj_set_style_bg_opa(editOverlay, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(editOverlay, 0, 0);
-        lv_obj_set_style_pad_all(editOverlay, 4, 0);
-
-        // Explicit, unmissable close affordance -- LVGL's default text
-        // keyboard has no visible "Cancel"/X key of its own (the only way
-        // to fire LV_EVENT_CANCEL from the stock map is tapping the small
-        // keyboard-glyph key, which doesn't read as "cancel" to a user and
-        // left this screen with no discoverable way out).
-        //
-        // TOP_MID, not TOP_RIGHT: this is a ROUND 240x240 panel -- a point
-        // needs to stay within ~120px of screen center (120,120) to be on
-        // the physical glass at all. TOP_RIGHT's corner is ~148px out,
-        // entirely outside the visible circle (confirmed the actual bug
-        // behind "still can't get out" -- the button existed but nothing
-        // could ever tap it). Centered near the top stays inside the
-        // circle, same reasoning as ui_screen_shell.cpp's header position.
-        lv_obj_t *cancelBtn = lv_btn_create(editOverlay);
-        lv_obj_set_size(cancelBtn, 28, 28);
-        lv_obj_set_style_radius(cancelBtn, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_color(cancelBtn, Palette::bgSecondary(), 0);
-        lv_obj_align(cancelBtn, LV_ALIGN_TOP_MID, 0, 14);
-        lv_obj_add_event_cb(cancelBtn, cancelBtnCb, LV_EVENT_CLICKED, NULL);
-        lv_obj_t *cancelLbl = lv_label_create(cancelBtn);
-        lv_label_set_text(cancelLbl, LV_SYMBOL_CLOSE);
-        lv_obj_set_style_text_font(cancelLbl, &lv_font_montserrat_12, 0);
-        lv_obj_center(cancelLbl);
-
-        editTextarea = lv_textarea_create(editOverlay);
-        lv_obj_set_size(editTextarea, 220, 40);
-        lv_obj_align(editTextarea, LV_ALIGN_TOP_MID, 0, 50);
-        lv_textarea_set_one_line(editTextarea, true);
-        lv_textarea_set_password_mode(editTextarea, isPassword);
-        lv_textarea_set_text(editTextarea, target);
-        lv_obj_set_style_bg_color(editTextarea, Palette::bgSecondary(), 0);
-        lv_obj_set_style_border_color(editTextarea, Palette::border(), 0);
-        lv_obj_set_style_border_width(editTextarea, 1, 0);
-        lv_obj_set_style_text_color(editTextarea, Palette::text(), 0);
-
-        lv_obj_t *kb = lv_keyboard_create(editOverlay);
-        lv_obj_set_size(kb, 240, 150);
-        lv_obj_align(kb, LV_ALIGN_BOTTOM_MID, 0, 0);
-        lv_keyboard_set_textarea(kb, editTextarea);
-        lv_obj_add_event_cb(kb, keyboardEventCb, LV_EVENT_ALL, NULL);
-        // Stock LVGL paints the keyboard in its own grey/blue theme, which
-        // was the single most obviously un-terraForge surface in the app.
-        lv_obj_set_style_bg_color(kb, Palette::bgApp(), LV_PART_MAIN);
-        lv_obj_set_style_bg_color(kb, Palette::bgSecondary(), LV_PART_ITEMS);
-        lv_obj_set_style_bg_color(kb, Palette::accentHover(), LV_PART_ITEMS | LV_STATE_PRESSED);
-        lv_obj_set_style_text_color(kb, Palette::text(), LV_PART_ITEMS);
-        lv_obj_set_style_border_width(kb, 0, LV_PART_ITEMS);
-        lv_obj_set_style_radius(kb, 4, LV_PART_ITEMS);
-
-        // A full QWERTY map across 240px gives ~24px keys -- narrower than a
-        // fingertip, and the lower rows sit near the round bezel where they
-        // can barely be touched at all. So drive it with the knob too:
-        // rotate steps the highlighted key, click types it, long-press
-        // closes. Touch still works for anyone who can hit the keys.
-        editGroup = lv_group_create();
-        lv_group_add_obj(editGroup, kb);
-        lv_group_focus_obj(kb);
-        LvglEncoder::capture(editGroup, closeEditor);
-
-        // Highlight the knob-focused key clearly -- with encoder input
-        // there's no finger to show where you are, so the focus ring IS the
-        // cursor.
-        lv_obj_set_style_bg_color(kb, Palette::accent(), LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
-        lv_obj_set_style_text_color(kb, Palette::accentFg(), LV_PART_ITEMS | LV_STATE_FOCUS_KEY);
+        RadialKeyboard::open(title, target, targetSize - 1, isPassword, editAccepted, editCancelled);
     }
 
+    // A category's control panel: fills the whole face and scrolls
+    // vertically, hidden until its category is opened.
+    //
+    // It used to be a 186px circle inset inside the 240px screen, which left
+    // a wide dead margin and only ~142px of usable width. Filling the screen
+    // and controlling the usable area with PADDING instead is worth ~40px
+    // more width.
+    //
+    // The padding is what keeps content inside the round bezel, so it isn't
+    // arbitrary: content spans y=46..184, and the panel's half-width at
+    // those extremes is sqrt(120^2 - 74^2) = 94px, comfortably clear of the
+    // 90px half-width the 180px content column needs. Widening the content
+    // or shrinking the vertical padding will start clipping rows against the
+    // curve at the top and bottom.
     lv_obj_t *makeCardShell(const char *title)
     {
         lv_obj_t *card = lv_obj_create(screenRoot);
-        lv_obj_set_style_bg_color(card, Palette::bgSecondary(), 0);
-        lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(card, 20, 0);
+        lv_obj_set_size(card, 240, 240);
+        lv_obj_center(card);
+        lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_bg_opa(card, LV_OPA_TRANSP, 0); // the screen behind it already carries the background
+        lv_obj_set_style_radius(card, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(card, 0, 0);
-        lv_obj_set_style_pad_all(card, 12, 0);
+        lv_obj_set_style_pad_hor(card, 30, 0);
+        lv_obj_set_style_pad_top(card, 46, 0);
+        lv_obj_set_style_pad_bottom(card, 56, 0); // clears the back button
         lv_obj_set_style_pad_row(card, 8, 0);
         lv_obj_set_scroll_dir(card, LV_DIR_VER);
         lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(card, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+
+        // No scrollbar. A straight bar down the edge of a CIRCULAR panel
+        // can't hug anything -- it just cuts across the face and reads as a
+        // rendering fault. Scrolling still works by knob and by drag; the
+        // bar was only ever an indicator, and a misleading one here.
+        lv_obj_set_scrollbar_mode(card, LV_SCROLLBAR_MODE_OFF);
 
         lv_obj_t *titleLbl = lv_label_create(card);
         lv_label_set_text(titleLbl, title);
@@ -237,13 +185,18 @@ namespace
         closeScanOverlay();
         // Naturally flows into typing the password for the network just
         // picked -- password-editing itself is unchanged.
-        openEditor(Config::get().wifiPass, sizeof(Config::get().wifiPass), nullptr, true, reconnectAfterWifiEdit);
+        openEditor(Config::get().wifiPass, sizeof(Config::get().wifiPass), nullptr, true, reconnectAfterWifiEdit, "Password");
     }
 
     void runScan()
     {
         lv_obj_clean(scanList);
         lv_label_set_text(scanStatusLbl, "Scanning...");
+        // Force the redraw NOW: WiFi.scanNetworks() below blocks this task
+        // for seconds, so without this the "Scanning..." label wouldn't
+        // reach the panel until the scan had already finished -- the screen
+        // just appeared frozen on its previous contents.
+        lv_refr_now(NULL);
         // Scanning fails immediately (not after a timeout) if the radio is
         // mid-connect/retry -- confirmed against the Arduino core's
         // WiFiScan.cpp: esp_wifi_scan_start() needs an idle STA. Stop any
@@ -350,7 +303,7 @@ namespace
     void passCb(lv_event_t *e)
     {
         (void)e;
-        openEditor(Config::get().wifiPass, sizeof(Config::get().wifiPass), nullptr, true, reconnectAfterWifiEdit);
+        openEditor(Config::get().wifiPass, sizeof(Config::get().wifiPass), nullptr, true, reconnectAfterWifiEdit, "Password");
     }
 
     void connectCb(lv_event_t *e)
@@ -412,13 +365,13 @@ namespace
     void fncHostCb(lv_event_t *e)
     {
         (void)e;
-        openEditor(Config::get().fluidNcHost, sizeof(Config::get().fluidNcHost), refreshHostLabels, false);
+        openEditor(Config::get().fluidNcHost, sizeof(Config::get().fluidNcHost), refreshHostLabels, false, nullptr, "FluidNC host");
     }
 
     void tpHostCb(lv_event_t *e)
     {
         (void)e;
-        openEditor(Config::get().terraPixelHost, sizeof(Config::get().terraPixelHost), refreshHostLabels, false);
+        openEditor(Config::get().terraPixelHost, sizeof(Config::get().terraPixelHost), refreshHostLabels, false, nullptr, "LED host");
     }
 
     void penMmSliderCb(lv_event_t *e)
@@ -496,8 +449,8 @@ namespace
         return card;
     }
 
-    // ---- Display card (backlight brightness + timeout, menu direction) ----
-    lv_obj_t *timeoutLbl = nullptr;
+    // ---- Display card (brightness, menu direction, screen sleep) ----
+    lv_obj_t *sleepLedLbl = nullptr;
     lv_obj_t *brightLbl = nullptr;
 
     void brightSliderCb(lv_event_t *e)
@@ -525,20 +478,42 @@ namespace
         Config::save();
     }
 
-    void timeoutSliderCb(lv_event_t *e)
+    // Sleep timeout as discrete chips rather than a slider: these are a few
+    // named choices, not a continuum, and chips are a far easier touch
+    // target than hitting an exact second on a 140px slider.
+    const int SLEEP_OPTION_COUNT = 4;
+    const uint16_t SLEEP_OPTION_SECS[SLEEP_OPTION_COUNT] = {0, 180, 300, 600};
+    const char *SLEEP_OPTION_LABELS[SLEEP_OPTION_COUNT] = {"Never", "3m", "5m", "10m"};
+    lv_obj_t *sleepChips[SLEEP_OPTION_COUNT] = {nullptr};
+    lv_obj_t *sleepChipLbls[SLEEP_OPTION_COUNT] = {nullptr};
+
+    void restyleSleepChips()
+    {
+        for (int i = 0; i < SLEEP_OPTION_COUNT; i++)
+        {
+            bool sel = Config::get().sleepTimeoutSec == SLEEP_OPTION_SECS[i];
+            lv_obj_set_style_bg_color(sleepChips[i], sel ? Palette::accent() : Palette::bgPanel(), 0);
+            lv_obj_set_style_text_color(sleepChipLbls[i], sel ? Palette::accentFg() : Palette::textMuted(), 0);
+        }
+    }
+
+    void sleepChipCb(lv_event_t *e)
+    {
+        int i = (int)(intptr_t)lv_event_get_user_data(e);
+        Config::get().sleepTimeoutSec = SLEEP_OPTION_SECS[i];
+        Config::save();
+        restyleSleepChips();
+    }
+
+    void sleepLedSliderCb(lv_event_t *e)
     {
         lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
         int v = lv_slider_get_value(slider);
-        char buf[24];
-        if (v == 0) snprintf(buf, sizeof(buf), "Backlight: always on");
-        else snprintf(buf, sizeof(buf), "Backlight: %ds", v);
-        lv_label_set_text(timeoutLbl, buf);
-
-        if (lv_event_get_code(e) == LV_EVENT_RELEASED)
-        {
-            Config::get().backlightTimeoutSec = (uint16_t)v;
-            Config::save();
-        }
+        char buf[28];
+        snprintf(buf, sizeof(buf), "Ring asleep: %d%%", v);
+        lv_label_set_text(sleepLedLbl, buf);
+        Config::get().sleepLedBrightnessPct = (uint8_t)v;
+        if (lv_event_get_code(e) == LV_EVENT_RELEASED) Config::save();
     }
 
     lv_obj_t *makeDisplayCard()
@@ -564,18 +539,47 @@ namespace
         lv_obj_t *invertSw = uiMakeSwitch(invertRow, Config::get().invertMenuRotation);
         lv_obj_add_event_cb(invertSw, invertRotCb, LV_EVENT_VALUE_CHANGED, NULL);
 
-        lv_obj_t *timeoutRow = uiMakeRow(card);
-        timeoutLbl = lv_label_create(timeoutRow);
-        lv_obj_set_style_text_font(timeoutLbl, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(timeoutLbl, Palette::textMuted(), 0);
-        lv_obj_t *timeoutSlider = uiMakeSlider(timeoutRow, 0, 300, Config::get().backlightTimeoutSec);
-        lv_obj_add_event_cb(timeoutSlider, timeoutSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
-        lv_obj_add_event_cb(timeoutSlider, timeoutSliderCb, LV_EVENT_RELEASED, NULL);
+        lv_obj_t *sleepRow = uiMakeRow(card, "Sleep after");
+        lv_obj_t *chipRow = lv_obj_create(sleepRow);
+        lv_obj_set_size(chipRow, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_bg_opa(chipRow, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_border_width(chipRow, 0, 0);
+        lv_obj_set_style_pad_all(chipRow, 0, 0);
+        lv_obj_set_style_pad_column(chipRow, 4, 0);
+        lv_obj_clear_flag(chipRow, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_flex_flow(chipRow, LV_FLEX_FLOW_ROW);
+        for (int i = 0; i < SLEEP_OPTION_COUNT; i++)
         {
-            char buf[24];
-            if (Config::get().backlightTimeoutSec == 0) snprintf(buf, sizeof(buf), "Backlight: always on");
-            else snprintf(buf, sizeof(buf), "Backlight: %ds", Config::get().backlightTimeoutSec);
-            lv_label_set_text(timeoutLbl, buf);
+            lv_obj_t *chip = lv_obj_create(chipRow);
+            lv_obj_set_size(chip, 38, 26);
+            lv_obj_set_style_radius(chip, 13, 0);
+            lv_obj_set_style_border_width(chip, 0, 0);
+            lv_obj_set_style_pad_all(chip, 0, 0);
+            lv_obj_clear_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_ext_click_area(chip, 4);
+            lv_obj_add_event_cb(chip, sleepChipCb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+            lv_obj_t *lbl = lv_label_create(chip);
+            lv_label_set_text(lbl, SLEEP_OPTION_LABELS[i]);
+            lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+            lv_obj_center(lbl);
+            sleepChips[i] = chip;
+            sleepChipLbls[i] = lbl;
+        }
+        restyleSleepChips();
+
+        // The ring stays lit while the screen is off, so machine state is
+        // still readable across the room mid-plot.
+        lv_obj_t *sleepLedRow = uiMakeRow(card);
+        sleepLedLbl = lv_label_create(sleepLedRow);
+        lv_obj_set_style_text_font(sleepLedLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(sleepLedLbl, Palette::textMuted(), 0);
+        lv_obj_t *sleepLedSlider = uiMakeSlider(sleepLedRow, 0, 100, Config::get().sleepLedBrightnessPct);
+        lv_obj_add_event_cb(sleepLedSlider, sleepLedSliderCb, LV_EVENT_VALUE_CHANGED, NULL);
+        lv_obj_add_event_cb(sleepLedSlider, sleepLedSliderCb, LV_EVENT_RELEASED, NULL);
+        {
+            char buf[28];
+            snprintf(buf, sizeof(buf), "Ring asleep: %d%%", Config::get().sleepLedBrightnessPct);
+            lv_label_set_text(sleepLedLbl, buf);
         }
 
         return card;
@@ -604,23 +608,148 @@ namespace
 
         return card;
     }
+
+    // ---- category ring ----
+    void showRing()
+    {
+        if (openPanel >= 0) lv_obj_add_flag(panels[openPanel], LV_OBJ_FLAG_HIDDEN);
+        openPanel = -1;
+        ring.setVisible(true);
+        lv_obj_clear_flag(hub, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    void openCategory(int index)
+    {
+        if (index < 0 || index >= CATEGORY_COUNT) return;
+        ring.setVisible(false);
+        lv_obj_add_flag(hub, LV_OBJ_FLAG_HIDDEN);
+        openPanel = index;
+        lv_obj_clear_flag(panels[index], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_scroll_to_y(panels[index], 0, LV_ANIM_OFF);
+    }
+
+    void refreshHub(int index)
+    {
+        lv_label_set_text(hubNameLbl, CATEGORY_NAMES[index]);
+    }
+
+    void hubTapCb(lv_event_t *e)
+    {
+        (void)e;
+        ring.openSelected();
+    }
+
+    void backBtnCb(lv_event_t *e)
+    {
+        (void)e;
+        // Same button serves both levels: step out of a category first, and
+        // only leave Settings once the ring is what's showing.
+        if (openPanel >= 0) showRing();
+        else UiNav::goHome();
+    }
+
+    void onItemStyle(lv_obj_t *chip, int, float nearness)
+    {
+        lv_opa_t mix = (lv_opa_t)(255 * nearness);
+        lv_obj_set_style_bg_color(chip, lv_color_mix(Palette::accent(), Palette::bgSecondary(), mix), 0);
+        lv_obj_t *icon = lv_obj_get_child(chip, 0);
+        if (icon)
+            lv_obj_set_style_text_color(icon, lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix), 0);
+    }
+
+    lv_obj_t *makeChip(const char *icon)
+    {
+        lv_obj_t *chip = lv_obj_create(screenRoot);
+        lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(chip, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_border_width(chip, 0, 0);
+        lv_obj_set_style_shadow_width(chip, 12, 0);
+        lv_obj_set_style_shadow_color(chip, lv_color_black(), 0);
+        lv_obj_set_style_shadow_opa(chip, LV_OPA_30, 0);
+        lv_obj_clear_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_style_pad_all(chip, 0, 0);
+        lv_obj_set_ext_click_area(chip, 10);
+
+        lv_obj_t *lbl = lv_label_create(chip);
+        lv_label_set_text(lbl, icon);
+        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
+        lv_obj_center(lbl);
+        return chip;
+    }
 }
 
 lv_obj_t *uiSettingsCreate()
 {
     screenRoot = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(screenRoot, Palette::bgApp(), 0);
+    // The screen itself never scrolls -- everything is placed by hand -- so
+    // suppress any scrollbar it might otherwise draw over the UI.
+    lv_obj_clear_flag(screenRoot, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(screenRoot, LV_SCROLLBAR_MODE_OFF);
 
-    // Bigger center card than Home/Jobs (186 matches the round-safe
-    // content area ui_screen_shell.cpp already uses) -- these cards hold
-    // several rows of controls, not just an icon+label.
-    carousel.create(screenRoot, 186, 90);
-    carousel.addCard(makeWifiCard());
-    carousel.addCard(makeMachineCard());
-    carousel.addCard(makeDisplayCard());
-    carousel.addCard(makeAboutCard());
+    // Panels first so the ring and hub end up drawn above them.
+    panels[0] = makeWifiCard();
+    panels[1] = makeMachineCard();
+    panels[2] = makeDisplayCard();
+    panels[3] = makeAboutCard();
 
-    addBackButton(screenRoot);
+    hub = lv_obj_create(screenRoot);
+    lv_obj_set_size(hub, 82, 82);
+    lv_obj_set_style_radius(hub, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(hub, Palette::bgSecondary(), 0);
+    lv_obj_set_style_bg_color(hub, Palette::accentHover(), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(hub, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(hub, Palette::border(), 0);
+    lv_obj_set_style_border_width(hub, 1, 0);
+    lv_obj_set_style_pad_all(hub, 0, 0);
+    lv_obj_clear_flag(hub, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(hub, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(hub, hubTapCb, LV_EVENT_CLICKED, NULL);
+    lv_obj_center(hub);
+
+    hubNameLbl = lv_label_create(hub);
+    lv_obj_set_style_text_font(hubNameLbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(hubNameLbl, Palette::text(), 0);
+    lv_obj_align(hubNameLbl, LV_ALIGN_CENTER, 0, -8);
+
+    hubHintLbl = lv_label_create(hub);
+    lv_label_set_text(hubHintLbl, "open");
+    lv_obj_set_style_text_font(hubHintLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(hubHintLbl, Palette::accent(), 0);
+    lv_obj_align(hubHintLbl, LV_ALIGN_CENTER, 0, 12);
+
+    // Arc rather than a full circle, same reason as Jobs: on a full circle
+    // four items land at 12/3/6/9 o'clock, and the 6 o'clock one sits right
+    // on top of the back button below.
+    //
+    // 40-degree pitch keeps all four inside the +/-132 arc at every
+    // selection, so nothing is ever hidden -- unlike Jobs, this is a short
+    // fixed menu and you want to see the whole thing. opaFar stays at 110
+    // (not transparent like Jobs) so the far item stays legible instead of
+    // fading out at the arc edge.
+    ring.create(screenRoot, 74, 56, 34, LV_OPA_COVER, 110);
+    ring.setArcLayout(40.0f, 132.0f);
+    ring.setOnOpen(openCategory);
+    ring.setOnSelect(refreshHub);
+    ring.setOnItemStyle(onItemStyle);
+    for (int i = 0; i < CATEGORY_COUNT; i++) ring.addItem(makeChip(CATEGORY_ICONS[i]));
+
+    lv_obj_move_foreground(hub);
+    refreshHub(0);
+
+    // Custom back button rather than addBackButton(): this one has to step
+    // out of an open category before it leaves the screen.
+    lv_obj_t *back = lv_btn_create(screenRoot);
+    lv_obj_set_size(back, 36, 36);
+    lv_obj_set_style_radius(back, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(back, Palette::bgSecondary(), 0);
+    lv_obj_set_ext_click_area(back, 10);
+    lv_obj_align(back, LV_ALIGN_BOTTOM_MID, 0, -8);
+    lv_obj_add_event_cb(back, backBtnCb, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *backLbl = lv_label_create(back);
+    lv_label_set_text(backLbl, LV_SYMBOL_LEFT);
+    lv_obj_set_style_text_color(backLbl, Palette::textMuted(), 0);
+    lv_obj_center(backLbl);
 
     return screenRoot;
 }
@@ -628,8 +757,28 @@ lv_obj_t *uiSettingsCreate()
 void uiSettingsHandleRotate(int32_t delta)
 {
     if (delta == 0) return;
-    for (int32_t i = 0; i < delta; i++) carousel.selectNext();
-    for (int32_t i = 0; i < -delta; i++) carousel.selectPrev();
+    if (openPanel >= 0)
+    {
+        // Inside a category the knob scrolls its controls -- several of the
+        // panels are taller than the round-safe area.
+        lv_obj_scroll_by(panels[openPanel], 0, -delta * 24, LV_ANIM_ON);
+        return;
+    }
+    for (int32_t i = 0; i < delta; i++) ring.selectNext();
+    for (int32_t i = 0; i < -delta; i++) ring.selectPrev();
+}
+
+void uiSettingsHandleClick()
+{
+    if (openPanel >= 0) return; // controls inside a panel are touch-operated
+    ring.openSelected();
+}
+
+bool uiSettingsHandleBack()
+{
+    if (openPanel < 0) return false;
+    showRing();
+    return true;
 }
 
 void uiSettingsUpdate()

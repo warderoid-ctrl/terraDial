@@ -1,0 +1,112 @@
+# terraTouch
+
+Standalone control panel for the **terraPen** pen plotter, running on an
+Elecrow CrowPanel 1.28" round display — a 240×240 touchscreen with a rotary
+knob. It talks to [FluidNC](http://wiki.fluidnc.com/) over a WebSocket, so
+the plotter can be driven from the bench without a laptop or phone.
+
+Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
+(desktop app — and the source of this panel's colour palette) and terraPixel
+(the rail lighting controller this panel can also drive).
+
+## What it does
+
+- **Jog** X/Y/Z by knob, with selectable step sizes and a per-axis *Set zero*
+- **Run G-code** straight off the plotter's SD card, with live job progress
+- **Pen up/down**, **homing** (with a clear-the-bed confirmation), **E-Stop**
+  and **alarm clear**
+- **Rail lighting** control via terraPixel — brightness, film mode, comet width
+- **On-device Wi-Fi setup**: scan for networks, pick one, type the password
+- **Machine status** shown on the panel's 5-LED ring, readable across the room
+- **Sleep mode** so the panel isn't glowing at you through a multi-hour plot
+
+## Hardware
+
+| | |
+|---|---|
+| Board | Elecrow CrowPanel 1.28" Rotary (ESP32-S3R8, 16MB flash, 8MB PSRAM) |
+| Display | GC9A01 240×240 round IPS, SPI |
+| Touch | CST816D capacitive, I²C |
+| Input | EC11-style rotary encoder with push switch |
+| LEDs | 5× WS2812 ring around the bezel |
+
+Pin assignments are in [`include/pins.h`](include/pins.h), confirmed against
+Elecrow's factory example for this exact board rather than guessed.
+
+Enclosure files (`dial case.stl`, `frame mount.stl`, `backplate.dxf`) are in
+the repo root.
+
+## Building
+
+Built with [PlatformIO](https://platformio.org/).
+
+```bash
+# 1. Wi-Fi credentials and hostnames -- secrets.h is gitignored
+cp include/secrets.h.example include/secrets.h
+$EDITOR include/secrets.h
+
+# 2. Build and flash
+pio run -t upload
+
+# 3. Watch the logs
+pio device monitor
+```
+
+Only the SSID and password are compile-time *defaults*: they're seeded into
+NVS on first boot, after which the Settings screen can change networks
+on-device without a reflash.
+
+## Using it
+
+The knob is the primary input; touch works everywhere too.
+
+| Gesture | Does |
+|---|---|
+| Rotate | Move through a ring / jog the selected axis / scroll a settings panel |
+| Click | Open the highlighted item, or confirm |
+| Long press | Back (out of a category first, then out of the screen) |
+| Tap the centre hub | Open whatever the hub is naming |
+
+**Home** is a radial dial of eight destinations. **Jobs** and **Settings** use
+the same ring on an open arc, which keeps the bottom of the face clear of the
+back button. Job Progress and Alarm Clear appear on their own when a job
+starts or an alarm trips.
+
+E-Stop stays red at every position on the dial rather than only when
+selected, so it's findable at a glance.
+
+## Layout
+
+```
+include/         pins, palette, LVGL config, shared enums
+lib/CST816D/     vendor touch driver
+src/
+  config/        NVS-backed settings
+  display/       all UI screens and shared widgets
+  input/         encoder driver
+  led/           WS2812 status ring
+  net/           FluidNC WebSocket client, terraPixel HTTP client, Wi-Fi
+tools/           icon generation
+design_handoff_radial_dial_ui/   UI mockups the layout follows
+```
+
+Some notes worth knowing before changing things:
+
+- **Networking runs on core 0**, in its own task (see `networkTask` in
+  `main.cpp`). mDNS lookups, WebSocket reads and HTTP calls all block for
+  seconds at a time; running them in `loop()` stalls rendering and touch.
+  Commands travel UI→network through a queue, and **nothing outside that task
+  may touch LVGL** — LVGL is single-threaded and lives on core 1.
+- **It's a round screen.** Anything more than ~120px from centre (120,120) is
+  behind the bezel and physically unreachable, corners included. Several bugs
+  have come from laying out against the 240×240 square instead of the circle.
+- **Avoid `transform_zoom` / `lv_img_set_zoom` on anything whose parent has
+  opacity < 255.** That combination pushes LVGL down an offscreen-layer path
+  that is unreliable on this board — it has twice caused elements to render
+  blank or vanish. Change real sizes instead.
+- Colours come from [`include/palette.h`](include/palette.h), ported from
+  terraForge's dark theme. Use the tokens, not literal hex.
+
+## Licence
+
+No licence specified yet.

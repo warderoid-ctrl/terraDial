@@ -1,19 +1,16 @@
 #include "ui_dial.h"
 #include "palette.h"
+#include "radial_ring.h"
 #include "icon_lightbulb.h"
-#include <math.h>
 
-// Home: a radial dial -- 8 destinations (Jobs, Jog, Pen, Lights, Home,
-// E-Stop, Alarm, Settings) arranged on a ring around the center, per the
-// "TerraPen Dial UI" mockup (Radial dial menu mockups/design_handoff_
-// radial_dial_ui/), which asks for Home specifically to revert from the
-// carousel pattern used elsewhere (Jobs/Settings keep the carousel -- see
-// carousel.h/ui_files.cpp/ui_settings.cpp, unchanged by this file).
-// The item nearest the top slot is largest/brightest; others shrink and
-// fade continuously with angular distance from top. Rotating the knob
-// spins the whole ring with a springy overshoot-eased transition rather
-// than a flat swap. "Job Progress" isn't a direct destination here --
-// ui_nav auto-navigates to it when a job starts.
+// Home: a radial dial -- 8 destinations arranged on a ring around a centre
+// hub, per the "TerraPen Dial UI" mockup. The item nearest the top slot is
+// largest/brightest; others shrink and fade with angular distance. The ring
+// mechanics live in RadialRing (shared with the Jobs screen); this file
+// supplies the items, their colours, and the hub.
+//
+// "Job Progress" isn't a destination here -- ui_nav auto-navigates to it
+// when a job starts.
 namespace
 {
     struct DialItem
@@ -43,182 +40,77 @@ namespace
         {"Settings", LV_SYMBOL_SETTINGS, nullptr, false},
     };
     const int DIAL_ITEM_COUNT = 8;
-    const float STEP_DEG = 360.0f / DIAL_ITEM_COUNT;
 
-    // Ring geometry, tuned for the real 240x240 round panel (visible
-    // radius ~120px) -- keep the largest card's reach under that or it
-    // clips the bezel on the top item.
-    const lv_coord_t RING_RADIUS = 74;
-    const lv_coord_t HUB_SIZE = 82; // center hub circle -- holds the selected item's name + machine status
+    const lv_coord_t HUB_SIZE = 82; // holds the selected item's name + machine status
 
-    // Continuous shrink/fade/color-blend range by angular distance (0 =
-    // dead center-top, 180 = directly opposite). Real size changes, not
-    // style transform_zoom -- combining transform_zoom with opa<255 forces
-    // LVGL to render each card through an offscreen layer every frame,
-    // which was unreliable on this device's heap (cards render blank at
-    // rest, flash briefly mid-animation). Plain resize+opa is the same
-    // technique the Jobs/Settings carousel already uses without issue.
-    const lv_coord_t SIZE_NEAR = 62;
-    const lv_coord_t SIZE_FAR = 30;
-    const lv_opa_t OPA_NEAR = LV_OPA_COVER;
-    const lv_opa_t OPA_FAR = 110;
-
+    RadialRing ring;
     lv_obj_t *statusLbl = nullptr;
     lv_obj_t *nameLbl = nullptr;
-    lv_obj_t *cards[DIAL_ITEM_COUNT];
-    lv_obj_t *iconLbls[DIAL_ITEM_COUNT];
+    lv_obj_t *iconObjs[DIAL_ITEM_COUNT] = {nullptr};
     bool iconIsLarge[DIAL_ITEM_COUNT] = {false};
-
-    int selectedIndex = 0;
-    int32_t offsetX100 = 0;       // ring rotation as currently rendered (moves mid-animation)
-    int32_t targetOffsetX100 = 0; // last commanded rest position -- always an exact multiple of
-                                   // STEP_DEG*100 relative to 0. New targets are always computed
-                                   // from THIS, never from offsetX100: offsetX100 can be caught
-                                   // mid-animation (e.g. spinning the knob fast enough to interrupt
-                                   // an in-flight spring before it settles), and computing the next
-                                   // target from an unsettled value permanently knocks the ring's
-                                   // rest position off-grid from selectedIndex -- exactly the "top
-                                   // item stops matching what opens" bug this avoids.
-    void (*onOpenCb)(int index) = nullptr;
-
-    float normalizeAngle(float deg)
-    {
-        while (deg > 180.0f) deg -= 360.0f;
-        while (deg < -180.0f) deg += 360.0f;
-        return deg;
-    }
-
-    void layoutRing()
-    {
-        float offsetDeg = offsetX100 / 100.0f;
-        for (int i = 0; i < DIAL_ITEM_COUNT; i++)
-        {
-            float angle = normalizeAngle(i * STEP_DEG + offsetDeg);
-            float dist = fabsf(angle) / 180.0f; // 0..1
-            float near = 1.0f - dist;
-
-            float rad = angle * (float)M_PI / 180.0f;
-            lv_coord_t x = (lv_coord_t)(RING_RADIUS * sinf(rad));
-            lv_coord_t y = (lv_coord_t)(-RING_RADIUS * cosf(rad));
-
-            lv_coord_t size = SIZE_FAR + (lv_coord_t)((SIZE_NEAR - SIZE_FAR) * near);
-            lv_obj_set_size(cards[i], size, size);
-            lv_obj_align(cards[i], LV_ALIGN_CENTER, x, y);
-
-            // alwaysAlert items skip the distance fade too -- a dimmed
-            // E-Stop would defeat the point of pinning its colour.
-            lv_opa_t opa = DIAL_ITEMS[i].alwaysAlert
-                               ? LV_OPA_COVER
-                               : (lv_opa_t)(OPA_FAR + (lv_opa_t)((OPA_NEAR - OPA_FAR) * near));
-            lv_obj_set_style_opa(cards[i], opa, 0);
-
-            // Card fades from the raised navy surface up to the red accent as
-            // it approaches the top slot; its icon fades from muted to full
-            // white so the selected item is unmistakable. E-Stop opts out --
-            // it stays alert red at every position.
-            lv_opa_t mix = (lv_opa_t)(255 * near);
-            lv_color_t iconColor = DIAL_ITEMS[i].alwaysAlert
-                                       ? Palette::accentFg()
-                                       : lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix);
-            lv_obj_set_style_bg_color(cards[i],
-                                      DIAL_ITEMS[i].alwaysAlert
-                                          ? Palette::alert()
-                                          : lv_color_mix(Palette::accent(), Palette::bgSecondary(), mix),
-                                      0);
-
-            bool large = near > 0.5f;
-            if (DIAL_ITEMS[i].iconImg)
-            {
-                // Alpha bitmaps take their colour from img_recolor, not
-                // text_color, and scale via the image's own zoom (256 =
-                // 1:1) rather than a font swap.
-                lv_obj_set_style_img_recolor(iconLbls[i], iconColor, 0);
-                if (large != iconIsLarge[i])
-                {
-                    iconIsLarge[i] = large;
-                    lv_img_set_zoom(iconLbls[i], large ? 256 : 150);
-                }
-            }
-            else
-            {
-                lv_obj_set_style_text_color(iconLbls[i], iconColor, 0);
-                // lv_obj_set_style_text_font forces a relayout of the label
-                // (font metrics changed), unlike the plain color/opa/size
-                // writes above -- skip it unless the near/far bucket actually
-                // flipped, since this runs on all 8 cards every animation
-                // frame and was adding up to visible per-frame cost.
-                if (large != iconIsLarge[i])
-                {
-                    iconIsLarge[i] = large;
-                    lv_obj_set_style_text_font(iconLbls[i], large ? &lv_font_montserrat_24 : &lv_font_montserrat_14, 0);
-                }
-            }
-
-            // Selected item stays foreground so it never renders under a
-            // neighbor mid-rotation.
-            if (i == selectedIndex) lv_obj_move_foreground(cards[i]);
-        }
-    }
-
-    void ringAnimCb(void *, int32_t v)
-    {
-        offsetX100 = v;
-        layoutRing();
-    }
-
-    // targetX100 becomes the new authoritative rest position; the anim just
-    // eases the on-screen offsetX100 there from wherever it currently is.
-    void animateTo(int32_t targetX100)
-    {
-        targetOffsetX100 = targetX100;
-        lv_anim_del(&offsetX100, ringAnimCb);
-        lv_anim_t a;
-        lv_anim_init(&a);
-        lv_anim_set_var(&a, &offsetX100);
-        lv_anim_set_exec_cb(&a, ringAnimCb);
-        lv_anim_set_values(&a, offsetX100, targetX100);
-        lv_anim_set_time(&a, 320); // was 550 -- felt laggy behind the physical knob
-        lv_anim_set_path_cb(&a, lv_anim_path_overshoot);
-        lv_anim_start(&a);
-    }
 
     void updateNameLabel()
     {
-        lv_label_set_text(nameLbl, DIAL_ITEMS[selectedIndex].label);
+        lv_label_set_text(nameLbl, DIAL_ITEMS[ring.selectedIndex()].label);
     }
 
-    void hubTapCb(lv_event_t *e)
-    {
-        (void)e;
-        if (onOpenCb) onOpenCb(selectedIndex);
-    }
+    void onSelect(int) { updateNameLabel(); }
 
-    void cardTapCb(lv_event_t *e)
+    void onItemStyle(lv_obj_t *card, int i, float nearness)
     {
-        int i = (int)(intptr_t)lv_event_get_user_data(e);
-        if (i != selectedIndex)
+        // Card fades from the raised navy surface up to the red accent as it
+        // approaches the top slot; its icon fades from muted to full white
+        // so the selected item is unmistakable. E-Stop opts out of both the
+        // colour blend and the distance fade -- a dimmed E-Stop would defeat
+        // the point of pinning its colour.
+        lv_opa_t mix = (lv_opa_t)(255 * nearness);
+        bool alert = DIAL_ITEMS[i].alwaysAlert;
+
+        if (alert) lv_obj_set_style_opa(card, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(card,
+                                  alert ? Palette::alert()
+                                        : lv_color_mix(Palette::accent(), Palette::bgSecondary(), mix),
+                                  0);
+
+        lv_color_t iconColor = alert ? Palette::accentFg()
+                                     : lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix);
+
+        // Hysteresis, NOT a plain `nearness > 0.5` test. nearness 0.5 is
+        // exactly 90 degrees -- the 3 and 9 o'clock slots, which are resting
+        // positions for an 8-item ring. A single threshold there sits right
+        // on the boundary, so float noise flipped the icon between its two
+        // sizes every frame and made those two items visibly stutter.
+        bool large = iconIsLarge[i] ? (nearness > 0.42f) : (nearness > 0.58f);
+
+        if (DIAL_ITEMS[i].iconImg)
         {
-            // Spin the tapped card to the top (shortest direction) so the
-            // ring reads correctly if the user comes back to Home --
-            // doesn't block opening below, which happens immediately.
-            int fwd = (i - selectedIndex + DIAL_ITEM_COUNT) % DIAL_ITEM_COUNT;
-            int back = DIAL_ITEM_COUNT - fwd;
-            int32_t stepsX100 = (fwd <= back) ? (int32_t)(-fwd * STEP_DEG * 100) : (int32_t)(back * STEP_DEG * 100);
-            selectedIndex = i;
-            animateTo(targetOffsetX100 + stepsX100);
-            updateNameLabel();
+            // Alpha bitmaps take their colour from img_recolor rather than
+            // text_color. Size is deliberately left alone: scaling via
+            // lv_img_set_zoom sent LVGL down its transform path, which
+            // combined with the parent card's opacity < 255 made the icon
+            // intermittently vanish altogether. The bitmap is generated at
+            // a size that reads correctly drawn 1:1 (tools/gen_lucide_icon.py).
+            lv_obj_set_style_img_recolor(iconObjs[i], iconColor, 0);
+            iconIsLarge[i] = large; // tracked only so the font path below stays in sync
         }
-        // Touch is a direct-select: tapping any card (top or a peeking
-        // neighbor) opens it immediately, same as a knob click on the top
-        // item -- touch doesn't need the two-step "spin into place, then
-        // tap/click again to open" the knob's rotate-then-click implies.
-        if (onOpenCb) onOpenCb(i);
+        else
+        {
+            lv_obj_set_style_text_color(iconObjs[i], iconColor, 0);
+            // A font change forces a label relayout, unlike the plain
+            // colour/size writes above -- skip it unless the near/far bucket
+            // actually flipped, since this runs for every item on every
+            // animation frame.
+            if (large != iconIsLarge[i])
+            {
+                iconIsLarge[i] = large;
+                lv_obj_set_style_text_font(iconObjs[i], large ? &lv_font_montserrat_24 : &lv_font_montserrat_14, 0);
+            }
+        }
     }
 
-    lv_obj_t *makeCard(lv_obj_t *parent, int index, const char *label, const char *icon)
+    lv_obj_t *makeCard(lv_obj_t *parent, int index)
     {
         lv_obj_t *card = lv_obj_create(parent);
-        lv_obj_set_size(card, SIZE_NEAR, SIZE_NEAR); // layoutRing() resizes every frame; this is just the initial value
         lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(card, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_border_width(card, 0, 0);
@@ -227,34 +119,35 @@ namespace
         lv_obj_set_style_shadow_opa(card, LV_OPA_30, 0);
         lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_style_pad_all(card, 0, 0);
-        // Extends the touch-sensitive area beyond the drawn circle without
-        // changing how it looks -- the shrunken off-top cards are small
-        // targets on a 240px panel, and a fingertip is much bigger than the
-        // ~30px they shrink to.
+        // Extends the touch area beyond the drawn circle without changing
+        // how it looks -- the shrunken off-top cards are much smaller than a
+        // fingertip.
         lv_obj_set_ext_click_area(card, 10);
-        lv_obj_add_event_cb(card, cardTapCb, LV_EVENT_CLICKED, (void *)(intptr_t)index);
 
         if (DIAL_ITEMS[index].iconImg)
         {
             lv_obj_t *img = lv_img_create(card);
             lv_img_set_src(img, DIAL_ITEMS[index].iconImg);
-            // Alpha-only source: recolor_opa must be on or it draws as
-            // nothing. layoutRing() then sets the colour per frame.
+            // Alpha-only source: recolor_opa must be on or it draws nothing.
             lv_obj_set_style_img_recolor_opa(img, LV_OPA_COVER, 0);
             lv_obj_center(img);
-            iconLbls[index] = img;
+            iconObjs[index] = img;
         }
         else
         {
             lv_obj_t *iconLbl = lv_label_create(card);
-            lv_label_set_text(iconLbl, icon);
+            lv_label_set_text(iconLbl, DIAL_ITEMS[index].icon);
             lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
             lv_obj_center(iconLbl);
-            iconLbls[index] = iconLbl;
+            iconObjs[index] = iconLbl;
         }
-
-        (void)label; // name shown centrally via nameLbl, not per-card
         return card;
+    }
+
+    void hubTapCb(lv_event_t *e)
+    {
+        (void)e;
+        ring.openSelected();
     }
 
     const char *textForMode(MachineMode mode)
@@ -297,10 +190,9 @@ lv_obj_t *uiDialCreate()
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_set_style_bg_color(scr, Palette::bgApp(), 0);
 
-    // Center hub -- same circular-chip styling as the ring items, just
-    // bigger and stationary. Holds the selected item's name (so rotating
-    // the ring doesn't hide it behind the top card) and the live machine
-    // status underneath it.
+    // Centre hub -- same circular styling as the ring items, just bigger and
+    // stationary. Holds the selected item's name (so rotating never hides
+    // it behind the top card) and the live machine status.
     lv_obj_t *hub = lv_obj_create(scr);
     lv_obj_set_size(hub, HUB_SIZE, HUB_SIZE);
     lv_obj_set_style_radius(hub, LV_RADIUS_CIRCLE, 0);
@@ -310,57 +202,42 @@ lv_obj_t *uiDialCreate()
     lv_obj_set_style_border_width(hub, 1, 0);
     lv_obj_set_style_pad_all(hub, 0, 0);
     lv_obj_clear_flag(hub, LV_OBJ_FLAG_SCROLLABLE);
-    // The hub already names the selected item, so tapping it opens that item
-    // -- a big, central, always-in-the-same-place target, unlike the ring
-    // cards which move as you rotate.
+    // The hub names the selected item, so tapping it opens that item -- a
+    // big, central, always-in-the-same-place target, unlike the ring cards
+    // which move as you rotate.
     lv_obj_add_flag(hub, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(hub, hubTapCb, LV_EVENT_CLICKED, NULL);
     lv_obj_align(hub, LV_ALIGN_CENTER, 0, 0);
 
     nameLbl = lv_label_create(hub);
     lv_obj_set_style_text_font(nameLbl, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(nameLbl, lv_color_white(), 0);
+    lv_obj_set_style_text_color(nameLbl, Palette::text(), 0);
     lv_obj_align(nameLbl, LV_ALIGN_CENTER, 0, -8);
 
     statusLbl = lv_label_create(hub);
     lv_obj_set_style_text_font(statusLbl, &lv_font_montserrat_12, 0);
     lv_obj_align(statusLbl, LV_ALIGN_CENTER, 0, 12);
 
-    for (int i = 0; i < DIAL_ITEM_COUNT; i++)
-        cards[i] = makeCard(scr, i, DIAL_ITEMS[i].label, DIAL_ITEMS[i].icon);
+    ring.create(scr);
+    ring.setOnItemStyle(onItemStyle);
+    ring.setOnSelect(onSelect);
+    for (int i = 0; i < DIAL_ITEM_COUNT; i++) ring.addItem(makeCard(scr, i));
 
-    selectedIndex = 0;
-    offsetX100 = 0;
-    targetOffsetX100 = 0;
-    layoutRing();
+    // Items are created after the hub, so raise it back above them.
+    lv_obj_move_foreground(hub);
+
     updateNameLabel();
-
     return scr;
 }
 
 void uiDialSetHandlers(void (*onOpen)(int index))
 {
-    onOpenCb = onOpen;
+    ring.setOnOpen(onOpen);
 }
 
-void uiDialSelectNext()
-{
-    selectedIndex = (selectedIndex + 1) % DIAL_ITEM_COUNT;
-    animateTo(targetOffsetX100 - (int32_t)(STEP_DEG * 100));
-    updateNameLabel();
-}
-
-void uiDialSelectPrev()
-{
-    selectedIndex = (selectedIndex - 1 + DIAL_ITEM_COUNT) % DIAL_ITEM_COUNT;
-    animateTo(targetOffsetX100 + (int32_t)(STEP_DEG * 100));
-    updateNameLabel();
-}
-
-void uiDialOpenSelected()
-{
-    if (onOpenCb) onOpenCb(selectedIndex);
-}
+void uiDialSelectNext() { ring.selectNext(); }
+void uiDialSelectPrev() { ring.selectPrev(); }
+void uiDialOpenSelected() { ring.openSelected(); }
 
 void uiDialUpdate(const FluidNCStatus &st)
 {

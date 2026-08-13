@@ -9,6 +9,12 @@ lv_obj_t *uiMakeRow(lv_obj_t *parent, const char *labelText, lv_obj_t **outLabel
     lv_obj_set_style_border_width(row, 0, 0);
     lv_obj_set_style_pad_all(row, 2, 0);
     lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+    // A row is a passive container -- it must never scroll or draw a
+    // scrollbar. Left scrollable, any child a few px wider than the row
+    // (e.g. a line of chips) tips it into horizontal overflow, and LVGL
+    // then draws a translucent grey scrollbar straight across that child.
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(row, LV_SCROLLBAR_MODE_OFF);
 
     if (labelText)
     {

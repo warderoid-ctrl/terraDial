@@ -13,9 +13,15 @@ struct AppSettings
 {
     char fluidNcHost[32];
     char terraPixelHost[32];
-    uint16_t backlightTimeoutSec;  // 0 = never auto-dim
+    // Idle seconds before the panel sleeps (backlight off). 0 = never.
+    // Replaced an older "dim the backlight" timeout -- see
+    // display/screen_sleep.h for why a real sleep mode earns its place.
+    uint16_t sleepTimeoutSec;
     uint8_t backlightBrightnessPct; // 10-100, the "awake" backlight level
-    // Flips which way the dial/carousels step relative to knob rotation.
+    // LED ring brightness while asleep: the ring keeps showing machine state
+    // across the room once the screen is dark.
+    uint8_t sleepLedBrightnessPct;
+    // Flips which way the menu rings step relative to knob rotation.
     // Purely a menu-navigation preference -- jogging always follows the
     // physical direction of the knob, since that maps to real machine
     // movement and inverting it would be a safety hazard.
