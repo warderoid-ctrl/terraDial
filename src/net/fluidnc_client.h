@@ -94,12 +94,6 @@ public:
     // underlying array the moment the mutex is released.
     bool fileListEntry(int i, FluidNCFileEntry &out) const;
 
-    // True once if a "[MSG:...PARTY]" line has arrived since the last call.
-    // FluidNC surfaces (MSG,PARTY) comments in a running program this way,
-    // which is how a plot can cue the rail lights from its own G-code.
-    // Consumed by the UI task; set by networkTask.
-    bool takePartyToggle();
-
     // Internal: bridges the C-style WebSocketsClient event callback back
     // into this instance. Public only because the trampoline needs it;
     // not part of the intended API surface.
@@ -121,7 +115,6 @@ private:
     static const uint32_t CELEBRATE_MS = 12000;
 
     SdFileList sdFiles_;
-    volatile bool partyToggle_ = false;
 
     // Outbound command plumbing. UI-thread callers enqueue; networkTask
     // dequeues and transmits. `raw` distinguishes realtime single bytes

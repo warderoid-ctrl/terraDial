@@ -13,15 +13,15 @@
 #include "display/screen_sleep.h"
 #include "input/encoder.h"
 #include "led/panel_ring.h"
-#include "led/rail_leds.h"
 #include "net/fluidnc_client.h"
+#include "net/terrapixel_client.h"
 #include "net/wifi_manager.h"
 #include <CST816D.h>
 
 // ---- terraTouch: CrowPanel round-screen control panel for terraPen ----
 // See the project plan for the staged build order; this file wires
-// together display/touch/encoder/LEDs, the FluidNC client, the rail light
-// strip, and screen sleep.
+// together display/touch/encoder/LEDs, the FluidNC + terraPixel clients,
+// and the backlight idle timeout.
 
 static LGFX gfx;
 static CST816D touch(PIN_TOUCH_SDA, PIN_TOUCH_SCL, PIN_TOUCH_RST, PIN_TOUCH_INT);
@@ -179,11 +179,12 @@ static void initTouchAndDisplay()
 //
 // This is the fix for the panel stuttering whenever the plotter was
 // connected. All three network paths block for a long time by design:
-// MDNS.queryHost() waits up to 1.5-2s and WebSocketsClient's frame reader
-// spins until a partially-arrived frame completes. Running either in loop()
-// stalls lv_timer_handler() and the touch driver for exactly that long --
-// which is why input felt fine at boot and then "laggy, then catches up"
-// once FluidNC was in the picture.
+// MDNS.queryHost() waits up to 1.5-2s, WebSocketsClient's frame reader
+// spins until a partially-arrived frame completes, and TerraPixelClient's
+// HTTP calls wait up to 1s. Running any of those in loop() stalls
+// lv_timer_handler() and the touch driver for exactly that long -- which is
+// why input felt fine at boot and then "laggy, then catches up" once
+// FluidNC (or an absent terraPixel) was in the picture.
 //
 // Arduino's loop() runs on core 1, so pinning this to core 0 means a
 // blocked socket can no longer delay a redraw or a button press. Commands
@@ -195,7 +196,11 @@ static void networkTask(void *)
     for (;;)
     {
         WifiManager::update();
-        if (WifiManager::isReady()) fluidNC.update();
+        if (WifiManager::isReady())
+        {
+            fluidNC.update();
+            terraPixel.update(); // blocking HTTP -- belongs here, not on the UI loop
+        }
         vTaskDelay(pdMS_TO_TICKS(2));
     }
 }
@@ -221,7 +226,6 @@ void setup()
 
     panelRing.begin();
     panelRing.setMode(MachineMode::Boot);
-    railLeds.begin();
 
     backlightInit();
     ScreenSleep::begin();
@@ -248,15 +252,6 @@ void loop()
 
     panelRing.setMode(fluidNC.status().mode);
     panelRing.update();
-
-    // The rail comet follows the carriage straight off the status stream --
-    // no second FluidNC connection, unlike the separate controller this
-    // replaced.
-    {
-        const FluidNCStatus &st = fluidNC.status();
-        if (fluidNC.takePartyToggle()) railLeds.toggleParty();
-        railLeds.update(st.mode, st.wposX, st.havePos);
-    }
 
     static uint32_t lastStatusUiUpdate = 0;
     if (millis() - lastStatusUiUpdate > STATUS_UI_REFRESH_MS)

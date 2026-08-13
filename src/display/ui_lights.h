@@ -3,16 +3,15 @@
 
 lv_obj_t *uiLightsCreate();
 
-// Called once by ui_nav when navigating into this screen: syncs every widget
-// to the current settings. Cheap now that the rail is driven locally -- this
-// used to be a blocking HTTP fetch from a separate controller.
+// Called once by ui_nav when navigating into this screen -- pulls fresh
+// terraPixel state and syncs all the widgets to it.
 void uiLightsOnShow();
 
+// Call every loop iteration: periodically refreshes terraPixel status in
+// the background (connection dot, mode text) without touching slider/switch
+// positions, so it doesn't fight a user mid-drag.
 // Called by ui_nav only while this screen is active: scrolls the page, the
 // same way the knob scrolls an open Settings category.
 void uiLightsHandleRotate(int32_t delta);
 
-// Call while this screen is visible. Only keeps the party-mode label honest,
-// since that's the one thing that can change from outside the screen (a
-// [MSG:...PARTY] line in the running G-code).
 void uiLightsUpdate();

@@ -25,8 +25,8 @@ void FluidNCClient::initTransport()
 
 void FluidNCClient::begin()
 {
-    // mDNS is started once by WifiManager before this is used -- nothing
-    // to do here.
+    // mDNS is started once in main.cpp (shared with TerraPixelClient)
+    // before this is used -- nothing to do here.
 }
 
 void FluidNCClient::enqueue(bool raw, const char *text)
@@ -283,14 +283,6 @@ void FluidNCClient::handleLine(char *line)
         return;
     }
 
-    // Program-driven cue: a (MSG,PARTY) comment in the running G-code
-    // surfaces here as [MSG:...PARTY].
-    if (strstr(line, "[MSG:") && strstr(line, "PARTY"))
-    {
-        partyToggle_ = true;
-        return;
-    }
-
     if (line[0] != '<') return;
 
     char *end = strpbrk(line + 1, "|>");
@@ -351,13 +343,6 @@ void FluidNCClient::handleLine(char *line)
 // All of these are called from the UI task -- they only enqueue, so a
 // stalled socket can never stall a button press (see the THREADING note in
 // the header).
-bool FluidNCClient::takePartyToggle()
-{
-    if (!partyToggle_) return false;
-    partyToggle_ = false;
-    return true;
-}
-
 void FluidNCClient::requestStatus() { enqueue(true, "?"); }
 void FluidNCClient::feedHold()      { enqueue(true, "!"); }
 void FluidNCClient::resume()        { enqueue(true, "~"); }

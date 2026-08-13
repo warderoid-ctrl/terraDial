@@ -135,10 +135,10 @@ namespace UiNav
     {
         checkAutoNav();
 
-        // Only meaningful while Lights is visible. It's cheap now that the
-        // rail is driven locally (it used to be a blocking HTTP poll to a
-        // separate controller, which froze the panel periodically on EVERY
-        // screen), but there's still nothing to refresh when it's off-screen.
+        // Only meaningful while Lights is visible. It's a cheap cache read
+        // now that terraPixel's HTTP lives on the network task -- it used to
+        // block here for ~1s every 3 seconds on EVERY screen, worst of all
+        // when the controller wasn't on the network at all.
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsUpdate();
 
         int32_t delta = jogWheel.takeRotationDelta();

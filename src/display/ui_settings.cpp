@@ -311,8 +311,9 @@ namespace
         return card;
     }
 
-    // ---- Machine card (FluidNC host, pen jog) ----
+    // ---- Machine card (FluidNC/terraPixel hosts, pen jog) ----
     lv_obj_t *fncHostLbl = nullptr;
+    lv_obj_t *tpHostLbl = nullptr;
     lv_obj_t *penMmLbl = nullptr;
     lv_obj_t *penFeedLbl = nullptr;
 
@@ -321,12 +322,20 @@ namespace
         char buf[40];
         snprintf(buf, sizeof(buf), "FluidNC: %s", Config::get().fluidNcHost);
         lv_label_set_text(fncHostLbl, buf);
+        snprintf(buf, sizeof(buf), "terraPixel: %s", Config::get().terraPixelHost);
+        lv_label_set_text(tpHostLbl, buf);
     }
 
     void fncHostCb(lv_event_t *e)
     {
         (void)e;
         openEditor(Config::get().fluidNcHost, sizeof(Config::get().fluidNcHost), refreshHostLabels, false, nullptr, "FluidNC host");
+    }
+
+    void tpHostCb(lv_event_t *e)
+    {
+        (void)e;
+        openEditor(Config::get().terraPixelHost, sizeof(Config::get().terraPixelHost), refreshHostLabels, false, nullptr, "LED host");
     }
 
     void penMmSliderCb(lv_event_t *e)
@@ -368,6 +377,10 @@ namespace
         lv_obj_add_flag(fncHostLbl, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(fncHostLbl, fncHostCb, LV_EVENT_CLICKED, NULL);
 
+        tpHostLbl = lv_label_create(card);
+        lv_obj_set_style_text_font(tpHostLbl, &lv_font_montserrat_12, 0);
+        lv_obj_add_flag(tpHostLbl, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(tpHostLbl, tpHostCb, LV_EVENT_CLICKED, NULL);
         refreshHostLabels();
 
         lv_obj_t *penMmRow = uiMakeRow(card);

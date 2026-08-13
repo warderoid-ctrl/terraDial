@@ -4,20 +4,21 @@
 <clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
 <g clip-path="url(#face)">
 <text x="120" y="52" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#60a0ff" text-anchor="middle" dominant-baseline="central">LIGHTS</text>
-<text x="120" y="74" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Film mode</text>
-<rect x="98" y="84" width="44" height="24" rx="12" fill="#16213e"/>
-<circle cx="110" cy="96" r="9" fill="#ffffff"/>
-<text x="120" y="122" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Rail brightness</text>
-<rect x="30" y="132" width="180" height="10" rx="5" fill="#16213e"/>
-<rect x="30" y="132" width="140.4" height="10" rx="5" fill="#e94560"/>
-<circle cx="170.4" cy="137" r="8" fill="#ffffff"/>
-<text x="120" y="160" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Rail when asleep</text>
-<rect x="42" y="170" width="48" height="26" rx="13" fill="#e94560"/>
-<text x="66" y="183" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">On</text>
-<rect x="96" y="170" width="48" height="26" rx="13" fill="#16213e"/>
-<text x="120" y="183" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Dim</text>
-<rect x="150" y="170" width="48" height="26" rx="13" fill="#16213e"/>
-<text x="174" y="183" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Off</text>
+<circle cx="96" cy="72" r="5" fill="#818ea5"/>
+<text x="132" y="72" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Rail: IDLE</text>
+<text x="120" y="92" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Panel ring brightness</text>
+<rect x="30" y="102" width="180" height="10" rx="5" fill="#16213e"/>
+<rect x="30" y="102" width="108" height="10" rx="5" fill="#e94560"/>
+<circle cx="138" cy="107" r="8" fill="#ffffff"/>
+<text x="120" y="130" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Rail brightness</text>
+<rect x="30" y="140" width="180" height="10" rx="5" fill="#16213e"/>
+<rect x="30" y="140" width="144" height="10" rx="5" fill="#e94560"/>
+<circle cx="174" cy="145" r="8" fill="#ffffff"/>
+<text x="120" y="168" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Film mode</text>
+<rect x="98" y="178" width="44" height="24" rx="12" fill="#16213e"/>
+<circle cx="110" cy="190" r="9" fill="#ffffff"/>
+<rect x="30" y="212" width="180" height="30" rx="15" fill="#e94560"/>
+<text x="120" y="227" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">Party: OFF</text>
 <circle cx="120" cy="214" r="18" fill="#0f3460"/>
 <path d="M122.8 209.8 l-4.9 4.2 l4.9 4.2" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </g></svg>
