@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+<circle cx="120" cy="120" r="119" fill="#0a0a12"/>
+<circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
+<clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
+<g clip-path="url(#face)">
+<circle cx="120" cy="46" r="28" fill="#e94560" opacity="1"/>
+<path d="M114.33 51.67 a5.67 5.67 0 0 1 11.34 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M110.55 49.67 a9.45 9.45 0 0 1 18.9 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M107.4 47.67 a12.6 12.6 0 0 1 25.2 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="120" cy="53.56" r="1.37455" fill="#ffffff"/>
+<circle cx="167.566" cy="63.3127" r="24.6667" fill="#a63f60" opacity="0.827689"/>
+<rect x="156.466" y="55.5427" width="22.2" height="15.54" rx="2.775" fill="none" stroke="#e1e3e6" stroke-width="1"/>
+<circle cx="167.566" cy="63.3127" r="3.552" fill="#e1e3e6"/>
+<circle cx="192.876" cy="107.15" r="21.3333" fill="#643a60" opacity="0.655377"/>
+<path d="M183.276 107.15 q9.6 -9.12 19.2 0 q-9.6 9.12 -19.2 0" stroke="#c3c7ce" stroke-width="1.74545" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="192.876" cy="107.15" r="2.88" fill="none" stroke="#c3c7ce" stroke-width="1.74545"/>
+<circle cx="184.086" cy="157" r="18" fill="#223560" opacity="0.483066"/>
+<path d="M177.606 152.545 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M177.606 157 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M177.606 161.455 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="120" cy="120" r="41" fill="#0f3460" stroke="#5c7a9e" stroke-width="1"/>
+<text x="120" y="112" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">Wi-Fi</text>
+<text x="120" y="132" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e94560" text-anchor="middle" dominant-baseline="central">open</text>
+<circle cx="120" cy="214" r="18" fill="#0f3460"/>
+<path d="M122.8 209.8 l-4.9 4.2 l4.9 4.2" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>

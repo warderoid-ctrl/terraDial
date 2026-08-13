@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+<circle cx="120" cy="120" r="119" fill="#0a0a12"/>
+<circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
+<clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
+<g clip-path="url(#face)">
+<path d="M100.15 34 a3.85 3.85 0 1 1 7.7 0" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M100.15 34 v2.45 M107.85 34 v2.45 M101.55 38.2 h4.9 M102.46 40.3 h3.08" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="126" y="34" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">LIGHTS</text>
+<text x="120" y="62" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Panel ring brightness</text>
+<rect x="40" y="74" width="160" height="10" rx="5" fill="#16213e"/>
+<rect x="40" y="74" width="96" height="10" rx="5" fill="#e94560"/>
+<circle cx="136" cy="79" r="8" fill="#ffffff"/>
+<text x="120" y="102" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Rail brightness</text>
+<rect x="40" y="114" width="160" height="10" rx="5" fill="#16213e"/>
+<rect x="40" y="114" width="128" height="10" rx="5" fill="#e94560"/>
+<circle cx="168" cy="119" r="8" fill="#ffffff"/>
+<text x="120" y="142" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Comet width</text>
+<rect x="40" y="154" width="160" height="10" rx="5" fill="#16213e"/>
+<rect x="40" y="154" width="56" height="10" rx="5" fill="#e94560"/>
+<circle cx="96" cy="159" r="8" fill="#ffffff"/>
+<rect x="40" y="184" width="160" height="30" rx="15" fill="#e94560"/>
+<text x="120" y="199" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">Party: OFF</text>
+<circle cx="120" cy="214" r="18" fill="#0f3460"/>
+<path d="M122.8 209.8 l-4.9 4.2 l4.9 4.2" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>

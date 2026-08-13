@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+<circle cx="120" cy="120" r="119" fill="#0a0a12"/>
+<circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
+<clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
+<g clip-path="url(#face)">
+<text x="120" y="22" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">a</text>
+<text x="140.375" y="24.1415" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">b</text>
+<text x="159.86" y="30.4725" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">c</text>
+<text x="177.603" y="40.7163" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">d</text>
+<text x="192.828" y="54.4252" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">e</text>
+<text x="204.87" y="71" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">f</text>
+<text x="213.204" y="89.7163" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">g</text>
+<text x="217.463" y="109.756" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#e94560" text-anchor="middle" dominant-baseline="central">h</text>
+<text x="217.463" y="130.244" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">i</text>
+<text x="213.204" y="150.284" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">j</text>
+<text x="204.87" y="169" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">k</text>
+<text x="192.828" y="185.575" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">l</text>
+<text x="177.603" y="199.284" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">m</text>
+<text x="159.86" y="209.527" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">n</text>
+<text x="140.375" y="215.858" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">o</text>
+<text x="120" y="218" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">p</text>
+<text x="99.6247" y="215.858" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">q</text>
+<text x="80.1398" y="209.527" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">r</text>
+<text x="62.397" y="199.284" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">s</text>
+<text x="47.1718" y="185.575" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">t</text>
+<text x="35.1295" y="169" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">u</text>
+<text x="26.7965" y="150.284" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">v</text>
+<text x="22.5369" y="130.244" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">w</text>
+<text x="22.5369" y="109.756" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">x</text>
+<text x="26.7965" y="89.7163" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">y</text>
+<text x="35.1295" y="71" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">z</text>
+<text x="47.1718" y="54.4252" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">ABC</text>
+<text x="62.397" y="40.7163" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">SP</text>
+<text x="80.1398" y="30.4725" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">&lt;x</text>
+<text x="99.6247" y="24.1415" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">OK</text>
+<circle cx="120" cy="120" r="52" fill="#0f3460" stroke="#5c7a9e" stroke-width="1"/>
+<text x="120" y="90" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Password</text>
+<text x="120" y="112" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">*******</text>
+<text x="120" y="144" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#e94560" text-anchor="middle" dominant-baseline="central">h</text>
+</g></svg>

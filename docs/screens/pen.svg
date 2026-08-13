@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+<circle cx="120" cy="120" r="119" fill="#0a0a12"/>
+<circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
+<clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
+<g clip-path="url(#face)">
+<path d="M103.1 38.9 l9.8 -9.8 M103.1 38.9 l2.45 -0.7" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="126" y="34" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">PEN</text>
+<rect x="50" y="88" width="140" height="64" rx="20" fill="#16213e"/>
+<rect x="53" y="91" width="66" height="58" rx="17" fill="#e94560"/>
+<text x="86" y="111" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">Pen</text>
+<text x="86" y="130" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">up</text>
+<rect x="121" y="91" width="66" height="58" rx="17" fill="#0f3460"/>
+<text x="154" y="111" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Pen</text>
+<text x="154" y="130" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">down</text>
+<circle cx="120" cy="214" r="18" fill="#0f3460"/>
+<path d="M122.8 209.8 l-4.9 4.2 l4.9 4.2" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>
