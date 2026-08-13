@@ -8,6 +8,7 @@
 
 namespace
 {
+    lv_obj_t *lightsPanel = nullptr; // the scrollable page, for knob scrolling
     lv_obj_t *connDot = nullptr;
     lv_obj_t *railModeLabel = nullptr;
     lv_obj_t *panelSlider = nullptr;
@@ -69,6 +70,7 @@ lv_obj_t *uiLightsCreate()
     // the older inset card -- this screen has five controls and was the last
     // one still squeezing them into ~142px of width.
     lv_obj_t *panel = uiMakePanel(scr, "LIGHTS");
+    lightsPanel = panel;
 
     // -- rail connection state --
     lv_obj_t *railHeader = lv_obj_create(panel);
@@ -117,6 +119,14 @@ lv_obj_t *uiLightsCreate()
 
     addBackButton(scr);
     return scr;
+}
+
+void uiLightsHandleRotate(int32_t delta)
+{
+    if (!lightsPanel || delta == 0) return;
+    // Same step as a Settings category panel so scrolling feels identical
+    // wherever the knob is scrolling a page rather than stepping a ring.
+    lv_obj_scroll_by(lightsPanel, 0, -delta * 24, LV_ANIM_ON);
 }
 
 void uiLightsOnShow()

@@ -260,8 +260,18 @@ namespace UiNav
             return;
         }
 
-        // Lights: touch-only content -- the knob's only role here is the
-        // universal "long press = back to the dial".
+        if (currentIndex == LIGHTS_SCREEN_INDEX)
+        {
+            // The page is taller than the round-safe area, so the knob
+            // scrolls it -- matching how it scrolls an open Settings
+            // category rather than leaving the knob doing nothing here.
+            if (menuDelta != 0) uiLightsHandleRotate(menuDelta);
+            if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            return;
+        }
+
+        // Defensive default -- every screen above handles itself, but a new
+        // one added without a case still gets the universal back gesture.
         if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
     }
 
