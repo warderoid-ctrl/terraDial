@@ -52,6 +52,25 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 Pin assignments are in [`include/pins.h`](include/pins.h), confirmed against
 Elecrow's factory example for this exact board rather than guessed.
 
+### Power
+
+It's a **USB-powered device** — a single USB-C lead carries both power and,
+when you want it, the serial console and firmware flashing. There's no barrel
+jack and no separate supply to find.
+
+That also means it runs happily off a **USB battery pack**, which is handy for
+a plotter that isn't parked next to a socket, or for filming without a cable
+in shot. Two things worth knowing if you do:
+
+- Many power banks cut out when they stop seeing meaningful current draw.
+  This panel is a modest load to begin with, and screen sleep drops it further
+  by switching the backlight off entirely — so a bank with an aggressive
+  auto-shutoff may power down mid-plot. Banks with a "low-current" or
+  "trickle" mode avoid this; otherwise turn sleep off (Settings → Display)
+  when running from one.
+- The bezel LED ring draws on the same supply, so a high ring brightness
+  costs battery life directly. It's on the Lights screen if you want it down.
+
 Enclosure files (`dial case.stl`, `frame mount.stl`, `backplate.dxf`) are in
 the repo root.
 
