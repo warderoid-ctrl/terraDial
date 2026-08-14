@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "lgfx_config.h" // backlightSet()
 #include "../config/settings.h"
+#include "ui_brand.h"
 #include "../led/panel_ring.h"
 
 namespace
@@ -14,6 +15,11 @@ namespace
     // sleep level.
     uint8_t savedLedBrightness = 60;
 
+    // How long before the brand screen appears. Deliberately much shorter
+    // than the sleep timeout and not user-configurable: it's a display, not
+    // a decision -- one toggle to disable it is enough.
+    const uint32_t IDLE_LOGO_MS = 30000;
+
     void goToSleep()
     {
         asleep = true;
@@ -24,6 +30,7 @@ namespace
 
     void wake()
     {
+        UiBrand::hide(); // sleep is normally entered via the brand screen
         asleep = false;
         backlightSet(Config::get().backlightBrightnessPct);
         panelRing.setBrightness(savedLedBrightness);
@@ -39,6 +46,14 @@ namespace ScreenSleep
 
     void update()
     {
+        uint32_t idleMs = millis() - lastActivityAt;
+
+        // Stage one: the brand screen. Runs on its own timer so it still
+        // appears when sleep is switched off entirely -- an idle panel on
+        // the machine may as well show the mark.
+        if (!asleep && Config::get().showIdleLogo && idleMs > IDLE_LOGO_MS && !UiBrand::isShown())
+            UiBrand::show();
+
         uint16_t timeoutSec = Config::get().sleepTimeoutSec;
         if (timeoutSec == 0)
         {
@@ -53,8 +68,21 @@ namespace ScreenSleep
     bool noteInputAndWake()
     {
         lastActivityAt = millis();
-        if (!asleep) return false;
-        wake();
-        return true; // caller must swallow this input
+
+        // Both stages swallow the input that dismisses them. Grabbing a dark
+        // or branded panel to see what's happening must never also press
+        // whatever was underneath.
+        bool dismissed = false;
+        if (UiBrand::isShown())
+        {
+            UiBrand::hide();
+            dismissed = true;
+        }
+        if (asleep)
+        {
+            wake();
+            dismissed = true;
+        }
+        return dismissed;
     }
 }

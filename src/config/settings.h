@@ -21,6 +21,9 @@ struct AppSettings
     // LED ring brightness while asleep: the ring keeps showing machine state
     // across the room once the screen is dark.
     uint8_t sleepLedBrightnessPct;
+    // Show the terraPen mark after a shorter spell of inactivity, before the
+    // panel sleeps proper (see display/ui_brand.h).
+    bool showIdleLogo;
     // Flips which way the menu rings step relative to knob rotation.
     // Purely a menu-navigation preference -- jogging always follows the
     // physical direction of the knob, since that maps to real machine

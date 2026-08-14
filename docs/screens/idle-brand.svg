@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+<circle cx="120" cy="120" r="119" fill="#0a0a12"/>
+<circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
+<clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
+<g clip-path="url(#face)">
+<path d="M96 68 l12 6.6 l0 43.2 l-12 -6.6" stroke="#e0e0e0" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M108 62 l12 6.6 l0 43.2 l-12 -6.6" stroke="#e0e0e0" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 56 l12 6.6 l0 43.2 l-12 -6.6" stroke="#e0e0e0" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M132 62 l12 6.6 l0 43.2 l-12 -6.6" stroke="#e0e0e0" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M144 68 l12 6.6 l0 43.2 l-12 -6.6" stroke="#e0e0e0" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="120" y="182" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">terraPen</text>
+<text x="120" y="204" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e94560" text-anchor="middle" dominant-baseline="central">terrapen.xyz</text>
+</g></svg>

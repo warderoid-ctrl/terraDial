@@ -7,6 +7,8 @@
 #include "ui_widgets.h"
 #include "lgfx_config.h" // backlightSet()
 #include "radial_keyboard.h"
+#include "icon_logo.h"
+#include "branding.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -435,6 +437,13 @@ namespace
         if (lv_event_get_code(e) == LV_EVENT_RELEASED) Config::save();
     }
 
+    void idleLogoCb(lv_event_t *e)
+    {
+        lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
+        Config::get().showIdleLogo = lv_obj_has_state(sw, LV_STATE_CHECKED);
+        Config::save();
+    }
+
     void invertRotCb(lv_event_t *e)
     {
         lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
@@ -499,6 +508,10 @@ namespace
             lv_label_set_text(brightLbl, buf);
         }
 
+        lv_obj_t *logoRow = uiMakeRow(card, "Idle logo");
+        lv_obj_t *logoSw = uiMakeSwitch(logoRow, Config::get().showIdleLogo);
+        lv_obj_add_event_cb(logoSw, idleLogoCb, LV_EVENT_VALUE_CHANGED, NULL);
+
         lv_obj_t *invertRow = uiMakeRow(card, "Invert menu rotation");
         lv_obj_t *invertSw = uiMakeSwitch(invertRow, Config::get().invertMenuRotation);
         lv_obj_add_event_cb(invertSw, invertRotCb, LV_EVENT_VALUE_CHANGED, NULL);
@@ -549,18 +562,61 @@ namespace
         return card;
     }
 
-    // ---- About card (real diagnostics, nothing fabricated) ----
+    // ---- About card: identity, links, diagnostics ----
     lv_obj_t *aboutIpLbl = nullptr;
     lv_obj_t *aboutUptimeLbl = nullptr;
+
+    // A QR plus its caption. Skipped entirely when the URL is empty, so an
+    // unfilled link (see include/branding.h) leaves no dead code on screen.
+    void addLinkQr(lv_obj_t *parent, const char *caption, const char *url)
+    {
+        if (!url || !url[0]) return;
+
+        lv_obj_t *capLbl = lv_label_create(parent);
+        lv_label_set_text(capLbl, caption);
+        lv_obj_set_style_text_font(capLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(capLbl, Palette::textMuted(), 0);
+
+        // Light background with dark modules, NOT the UI palette inverted:
+        // scanners are far more reliable on conventional polarity, and a
+        // code nobody's phone will read is decoration, not a link.
+        lv_obj_t *qr = lv_qrcode_create(parent, 104, Palette::bgApp(), lv_color_white());
+        lv_qrcode_update(qr, url, strlen(url));
+        // Quiet zone: the spec wants clear space around the symbol, and
+        // without it the dark UI crowds the edge modules.
+        lv_obj_set_style_border_color(qr, lv_color_white(), 0);
+        lv_obj_set_style_border_width(qr, 4, 0);
+    }
 
     lv_obj_t *makeAboutCard()
     {
         lv_obj_t *card = makeCardShell("ABOUT");
 
+        lv_obj_t *logo = lv_img_create(card);
+        lv_img_set_src(logo, &iconLogo);
+        // Alpha-only: recolor_opa must be on or it draws nothing. This is
+        // also what flips the print artwork's black stroke to light-on-dark.
+        lv_obj_set_style_img_recolor(logo, Palette::text(), 0);
+        lv_obj_set_style_img_recolor_opa(logo, LV_OPA_COVER, 0);
+
+        lv_obj_t *nameLbl = lv_label_create(card);
+        lv_label_set_text(nameLbl, Branding::productName());
+        lv_obj_set_style_text_font(nameLbl, &lv_font_montserrat_16, 0);
+        lv_obj_set_style_text_color(nameLbl, Palette::text(), 0);
+
+        lv_obj_t *siteLbl = lv_label_create(card);
+        lv_label_set_text(siteLbl, Branding::siteLabel());
+        lv_obj_set_style_text_font(siteLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(siteLbl, Palette::accent(), 0);
+
+        addLinkQr(card, "terrapen.xyz", Branding::siteUrl());
+        addLinkQr(card, "Source on GitHub", Branding::githubUrl());
+        addLinkQr(card, "Discord", Branding::discordUrl());
+
         lv_obj_t *hostLbl = lv_label_create(card);
         lv_label_set_text(hostLbl, "terratouch.local");
         lv_obj_set_style_text_font(hostLbl, &lv_font_montserrat_12, 0);
-        lv_obj_set_style_text_color(hostLbl, lv_color_white(), 0);
+        lv_obj_set_style_text_color(hostLbl, Palette::text(), 0);
 
         aboutIpLbl = lv_label_create(card);
         lv_obj_set_style_text_font(aboutIpLbl, &lv_font_montserrat_12, 0);

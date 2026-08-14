@@ -53,6 +53,11 @@
 /*=======================
  * FEATURE CONFIGURATION
  *=======================*/
+// QR codes on the About screen: a 240px round panel is no place to read a
+// URL, let alone type one, but a phone camera handles a QR off the glass.
+// LVGL bundles qrcodegen under extra/libs/qrcode.
+#define LV_USE_QRCODE 1
+
 #define LV_USE_PERF_MONITOR 0
 #define LV_USE_MEM_MONITOR 0
 

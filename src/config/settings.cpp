@@ -27,6 +27,7 @@ namespace Config
         settings.sleepTimeoutSec = prefs.getUShort("sleepSec", 300); // 5 min
         settings.backlightBrightnessPct = prefs.getUChar("blBright", 100);
         settings.sleepLedBrightnessPct = prefs.getUChar("sleepLed", 50);
+        settings.showIdleLogo = prefs.getBool("idleLogo", true);
         settings.invertMenuRotation = prefs.getBool("invMenuRot", false);
         settings.penJogMm = prefs.getFloat("penMm", PEN_JOG_MM);
         settings.penJogFeed = prefs.getFloat("penFeed", PEN_JOG_FEED);
@@ -43,6 +44,7 @@ namespace Config
         prefs.putUShort("sleepSec", settings.sleepTimeoutSec);
         prefs.putUChar("blBright", settings.backlightBrightnessPct);
         prefs.putUChar("sleepLed", settings.sleepLedBrightnessPct);
+        prefs.putBool("idleLogo", settings.showIdleLogo);
         prefs.putBool("invMenuRot", settings.invertMenuRotation);
         prefs.putFloat("penMm", settings.penJogMm);
         prefs.putFloat("penFeed", settings.penJogFeed);

@@ -377,6 +377,64 @@ def screen_alarm():
     return "alarm-clear", p
 
 
+def logo_mark(parts, cx, cy, size, col):
+    """A stand-in for the terraPen mark -- the real one is a single
+    continuous stroked path (see tools/gen_logo.py); this just suggests its
+    isometric line-work at README scale."""
+    u = size / 8.0
+    st = ('stroke="%s" stroke-width="1.6" fill="none" stroke-linecap="round" '
+          'stroke-linejoin="round"' % col)
+    for i in range(-2, 3):
+        x = cx + i * u
+        parts.append('<path d="M%g %g l%g %g l0 %g l%g %g" %s/>'
+                     % (x, cy - size / 2 + abs(i) * u * .5, u, u * .55,
+                        size * .45, -u, -u * .55, st))
+
+
+def qr_block(parts, x, y, size, modules=21):
+    """Illustrative QR -- deterministic pattern, not a real encoding."""
+    rect(parts, x - 4, y - 4, size + 8, size + 8, 2, "#ffffff")
+    m = size / float(modules)
+    seed = 12345
+    for r in range(modules):
+        for c in range(modules):
+            finder = ((r < 7 and c < 7) or (r < 7 and c >= modules - 7)
+                      or (r >= modules - 7 and c < 7))
+            if finder:
+                edge = (r in (0, 6) or c in (0, 6) or r in (modules - 1, modules - 7)
+                        or c in (modules - 1, modules - 7))
+                ring = (2 <= r % (modules - 7) <= 4) if False else None
+                on = edge or (2 <= (r % 7) <= 4 and 2 <= (c % 7) <= 4)
+            else:
+                seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF
+                on = (seed >> 16) & 1
+            if on:
+                parts.append('<rect x="%g" y="%g" width="%g" height="%g" fill="%s"/>'
+                             % (x + c * m, y + r * m, m, m, BG_APP))
+
+
+def screen_about():
+    p = []
+    head(p)
+    text(p, 120, 46, "ABOUT", 12, ACCENT_SECONDARY, "600")
+    logo_mark(p, 120, 86, 44, TEXT)
+    text(p, 120, 120, "terraPen", 16, TEXT, "600")
+    text(p, 120, 138, "terrapen.xyz", 12, ACCENT)
+    qr_block(p, 88, 152, 64)
+    tail(p)
+    return "about", p
+
+
+def screen_brand():
+    p = []
+    head(p)
+    logo_mark(p, 120, 104, 96, TEXT)
+    text(p, 120, 182, "terraPen", 16, TEXT, "600")
+    text(p, 120, 204, "terrapen.xyz", 12, ACCENT)
+    tail(p)
+    return "idle-brand", p
+
+
 def screen_keyboard():
     p = []
     head(p)
@@ -403,7 +461,8 @@ def main():
     os.makedirs(out, exist_ok=True)
     for fn in (screen_home, screen_jobs, screen_jog, screen_pen, screen_home_confirm,
                screen_lights, screen_settings_ring, screen_settings_display,
-               screen_job_progress, screen_estop, screen_alarm, screen_keyboard):
+               screen_job_progress, screen_estop, screen_alarm, screen_keyboard,
+               screen_about, screen_brand):
         name, parts = fn()
         path = os.path.join(out, name + ".svg")
         open(path, "w").write("\n".join(parts))

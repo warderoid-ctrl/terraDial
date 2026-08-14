@@ -18,7 +18,10 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 - **Rail lighting** control via terraPixel — brightness, film mode, comet width
 - **On-device Wi-Fi setup**: scan for networks, pick one, type the password
 - **Machine status** shown on the panel's 5-LED ring, readable across the room
-- **Sleep mode** so the panel isn't glowing at you through a multi-hour plot
+- **Sleep mode** so the panel isn't glowing at you through a multi-hour plot,
+  with the terraPen mark shown while idle beforehand
+- **About screen** carrying the project identity and QR links to the site,
+  source and Discord — a 240px dial is no place to read a URL
 
 ## Screens
 
@@ -34,6 +37,7 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 | <img src="docs/screens/job-progress.svg" width="180"><br>**Job progress** — appears on its own | <img src="docs/screens/pen.svg" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg" width="180"><br>**Home XY** — clear‑the‑bed gate |
 | <img src="docs/screens/lights.svg" width="180"><br>**Lights** — terraPixel rail control | <img src="docs/screens/settings-ring.svg" width="180"><br>**Settings** — four categories | <img src="docs/screens/settings-display.svg" width="180"><br>**Display** — brightness, sleep |
 | <img src="docs/screens/radial-keyboard.svg" width="180"><br>**Radial keyboard** — knob‑first text entry | <img src="docs/screens/estop.svg" width="180"><br>**E‑Stop** — feed hold + soft reset | <img src="docs/screens/alarm-clear.svg" width="180"><br>**Alarm clear** — appears on alarm |
+| <img src="docs/screens/about.svg" width="180"><br>**About** — identity, QR links, diagnostics | <img src="docs/screens/idle-brand.svg" width="180"><br>**Idle** — the mark, before sleep | |
 
 ## Hardware
 
@@ -102,7 +106,7 @@ src/
   input/         encoder driver
   led/           WS2812 status ring
   net/           FluidNC WebSocket client, terraPixel HTTP client, Wi-Fi
-tools/           icon and screen-illustration generation
+tools/           icon, logo and screen-illustration generation
 design_handoff_radial_dial_ui/   UI mockups the layout follows
 ```
 
@@ -122,6 +126,9 @@ Some notes worth knowing before changing things:
   blank or vanish. Change real sizes instead.
 - Colours come from [`include/palette.h`](include/palette.h), ported from
   terraForge's dark theme. Use the tokens, not literal hex.
+- Project links live in [`include/branding.h`](include/branding.h). The
+  Discord URL is deliberately empty until there's a real invite — an entry
+  with no URL is skipped rather than rendered as a QR that goes nowhere.
 
 ## Licence
 
