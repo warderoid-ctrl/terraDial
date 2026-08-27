@@ -7,5 +7,5 @@
 // screens behave identically.
 lv_obj_t *uiHomeCreate();
 
-// Sends $X (unlock) then $H -- wired to the on-screen pill and a knob click.
+// Homes ($X first only if alarmed) -- wired to the on-screen pill and a knob click.
 void uiHomeTrigger();

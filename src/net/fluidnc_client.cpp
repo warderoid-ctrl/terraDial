@@ -140,6 +140,7 @@ void FluidNCClient::update()
         return;
     }
 
+    servicePendingHome(); // may enqueue, so before the drain
     drainCommandQueue();
     wsClient.loop();
     if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
@@ -165,6 +166,10 @@ void FluidNCClient::onWsEvent(uint8_t type, uint8_t *payload, size_t length)
         case WStype_DISCONNECTED:
             Serial.println("[fluidnc] websocket disconnected");
             status_.connected = false;
+            status_.disconnects++;
+            strncpy(status_.lastMessage, "websocket dropped", sizeof(status_.lastMessage) - 1);
+            status_.lastMessageAt = millis();
+            status_.lastFailure = true;
             status_.mode = MachineMode::Boot;
             status_.havePos = false;
             if (fileMutex_ && xSemaphoreTake(fileMutex_, pdMS_TO_TICKS(5)) == pdTRUE)
@@ -259,6 +264,32 @@ void FluidNCClient::applyState(const char *state)
     status_.mode = next;
 }
 
+// Everything FluidNC says goes to the serial log, but only some of it is
+// worth putting on the alarm screen.
+void FluidNCClient::noteMessage(const char *line)
+{
+    bool failure = !strncmp(line, "error:", 6) || !strncmp(line, "ALARM:", 6);
+
+    if (!failure)
+    {
+        // A verbose FluidNC build narrates homing at about 25
+        // [MSG:DBG:...] lines per cycle. Invaluable on the serial log,
+        // fatal on the alarm screen: the chatter continues after an
+        // aborted cycle, so an unfiltered "last message" would calmly
+        // report "Homing done" over the ALARM that actually stopped you.
+        if (!strncmp(line, "[MSG:DBG:", 9)) return;
+
+        // Same reasoning, slower: don't let ordinary messages overwrite a
+        // fresh failure before anyone has walked over to read it.
+        if (status_.lastFailure && millis() - status_.lastMessageAt < FAILURE_STICKY_MS) return;
+    }
+
+    strncpy(status_.lastMessage, line, sizeof(status_.lastMessage) - 1);
+    status_.lastMessage[sizeof(status_.lastMessage) - 1] = '\0';
+    status_.lastMessageAt = millis();
+    status_.lastFailure = failure;
+}
+
 void FluidNCClient::handleLine(char *line)
 {
     // Auto-reporting (`$Report/Interval=100`) keeps sending realtime status
@@ -283,7 +314,19 @@ void FluidNCClient::handleLine(char *line)
         return;
     }
 
-    if (line[0] != '<') return;
+    // Everything that isn't a status report is an ack: "ok", "error:N",
+    // "ALARM:N" or an "[MSG:...]". Nothing here parses them, but they are
+    // the only place FluidNC says *why* something failed, so at least put
+    // them on the serial log rather than dropping them silently.
+    if (line[0] != '<')
+    {
+        if (strncmp(line, "ok", 2) != 0)
+        {
+            Serial.printf("[fluidnc] %s\n", line);
+            noteMessage(line);
+        }
+        return;
+    }
 
     char *end = strpbrk(line + 1, "|>");
     if (!end) return;
@@ -323,6 +366,16 @@ void FluidNCClient::handleLine(char *line)
     if (sd)
     {
         status_.jobPercent = atof(sd + 3);
+
+        // FluidNC only reports SD: while it is actually running a file, so
+        // its presence is proof of a job in a way mode==Run isn't (Run also
+        // covers plain jogging). runFile() sets this too, but only for jobs
+        // *we* started -- a job launched from the web UI or terraForge left
+        // the pendant showing an empty ring at 0%, which is the whole point
+        // of having a pendant missed. Gated on Run/Hold so a trailing SD:
+        // in a post-job status report can't keep the flag raised.
+        if (status_.mode == MachineMode::Run || status_.mode == MachineMode::Hold)
+            status_.jobActive = true;
         char *comma = strchr(sd + 3, ',');
         if (comma)
         {
@@ -348,11 +401,62 @@ void FluidNCClient::feedHold()      { enqueue(true, "!"); }
 void FluidNCClient::resume()        { enqueue(true, "~"); }
 void FluidNCClient::softReset()     { enqueue(true, "\x18"); }
 
-void FluidNCClient::home()       { enqueue(false, "$H"); }
+// Homing used to be an unconditional "$X then $H" pair enqueued together,
+// which meant both lines hit the websocket in the same drain, microseconds
+// apart, whatever state the machine was in. That is the one thing the
+// pendant did differently from the web UI -- and it broke exactly the case
+// where the $X is pointless: homing a machine that is already Idle because
+// it just homed. Unlocking pokes FluidNC's state machine, and a $H that
+// arrives in the same breath can start a homing cycle that the pending
+// unlock then aborts, which surfaces as an instant alarm. Homing once from
+// a fresh (alarmed) boot always worked because there the $X had real work
+// to do and was resolved before the $H landed.
+//
+// So: unlock only when there is an alarm to clear, and never in the same
+// burst as the $H.
+void FluidNCClient::home()
+{
+    // A second $H mid-cycle can only interfere with the one already
+    // running -- the machine is going to the same place regardless.
+    if (status_.mode == MachineMode::Homing) return;
+
+    if (status_.mode == MachineMode::Alarm)
+    {
+        enqueue(false, "$X");
+        homePending_ = true;
+        homeRequestedAt_ = millis();
+        return;
+    }
+
+    enqueue(false, "$H");
+}
+
+// networkTask only -- releases the $H held back by home().
+void FluidNCClient::servicePendingHome()
+{
+    if (!homePending_) return;
+
+    uint32_t waited = millis() - homeRequestedAt_;
+    if (waited < UNLOCK_SETTLE_MS) return;
+    if (status_.mode == MachineMode::Alarm && waited < UNLOCK_TIMEOUT_MS) return;
+
+    if (status_.mode == MachineMode::Alarm)
+        Serial.println("[fluidnc] still alarmed after $X, homing anyway -- watch for the error below");
+
+    homePending_ = false;
+    enqueue(false, "$H");
+}
 void FluidNCClient::clearAlarm() { enqueue(false, "$X"); }
 
 void FluidNCClient::jog(char axis, float deltaMm, float feedrate)
 {
+    // A homing cycle is not something to jog out from under: 0x85 below is
+    // a motion-cancel realtime byte, so sent mid-cycle it stops the homing
+    // move, and FluidNC alarms on a cycle that didn't finish. The knob is
+    // live on the Jog and Pen screens the whole time homing runs, so this
+    // is one nudge away rather than hypothetical.
+    if (status_.mode == MachineMode::Homing) return;
+
     // Jog cancel (GRBL/FluidNC realtime byte 0x85) first: without it,
     // FluidNC keeps running the previous jog move to completion before a
     // new $J= line takes effect, so alternating commands (knob jogging

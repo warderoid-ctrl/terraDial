@@ -2,15 +2,21 @@
 #include "../net/fluidnc_client.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
+#include <string.h>
 
 // The mockup shows the specific alarm reason ("Hard limit triggered ·
-// Z-"), but FluidNC's status-report parser (fluidnc_client.cpp) only
-// extracts machine mode/position/job progress, not an alarm cause -- that
-// would need FluidNC's separate ALARM: message line parsed too, which
-// isn't done today. Shows a generic message rather than inventing a
-// reason.
+// Z-"), and FluidNC does say it -- just not in the status report, which
+// carries the state (Alarm) and nothing about why. The reason arrives on a
+// separate "ALARM:N"/"error:N" line, which the client now keeps in
+// status().lastMessage; this screen shows it verbatim in place of the
+// generic body copy. Verbatim rather than translated to prose because an
+// alarm we can't decode is exactly the one worth reading, and the raw code
+// is what FluidNC's docs are indexed by.
 namespace
 {
+    lv_obj_t *bodyLbl = nullptr;
+    char shownMessage[56] = {0};
+
     void clearBtnCb(lv_event_t *e) { (void)e; uiAlarmClearTrigger(); }
 }
 
@@ -34,7 +40,7 @@ lv_obj_t *uiAlarmClearCreate()
     lv_obj_set_style_text_color(titleLbl, lv_color_white(), 0);
     lv_obj_align(titleLbl, LV_ALIGN_CENTER, 0, -28);
 
-    lv_obj_t *bodyLbl = lv_label_create(scr);
+    bodyLbl = lv_label_create(scr);
     lv_label_set_text(bodyLbl, "Clear the bed, then clear\nthe alarm to continue.");
     lv_obj_set_style_text_align(bodyLbl, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(bodyLbl, &lv_font_montserrat_12, 0);
@@ -56,6 +62,22 @@ lv_obj_t *uiAlarmClearCreate()
     addBackButton(scr);
 
     return scr;
+}
+
+// Called from UiNav::update() while this screen is visible.
+void uiAlarmClearUpdate()
+{
+    if (!bodyLbl) return;
+
+    const char *msg = fluidNC.status().lastMessage;
+    if (!msg[0] || !strcmp(msg, shownMessage)) return;
+
+    strncpy(shownMessage, msg, sizeof(shownMessage) - 1);
+    shownMessage[sizeof(shownMessage) - 1] = '\0';
+    // Two short lines fit the 240px circle; one long one does not.
+    lv_label_set_long_mode(bodyLbl, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(bodyLbl, 190);
+    lv_label_set_text(bodyLbl, shownMessage);
 }
 
 void uiAlarmClearTrigger()

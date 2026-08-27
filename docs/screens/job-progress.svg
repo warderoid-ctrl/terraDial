@@ -6,11 +6,11 @@
 <circle cx="120" cy="120" r="106" fill="none" stroke="#16213e" stroke-width="12"/>
 <path d="M120 14 A106 106 0 0 1 171.066 212.889" stroke="#e94560" stroke-width="12" fill="none"/>
 <text x="120" y="64" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">flow_red.gcode</text>
+<text x="120" y="84" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">6:18   ~9 min left</text>
 <text x="120" y="106" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="32" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">42%</text>
 <circle cx="86" cy="164" r="29" fill="#0f3460"/>
 <rect x="81" y="158" width="3.5" height="12" rx="1" fill="#e0e0e0"/>
 <rect x="87.5" y="158" width="3.5" height="12" rx="1" fill="#e0e0e0"/>
 <circle cx="154" cy="164" r="29" fill="#d12b3f"/>
 <rect x="148.4" y="158.4" width="11.2" height="11.2" rx="1.6" fill="#ffffff"/>
-<text x="120" y="206" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#60a0ff" text-anchor="middle" dominant-baseline="central">pen down</text>
 </g></svg>

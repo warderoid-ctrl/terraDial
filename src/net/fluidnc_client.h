@@ -34,6 +34,24 @@ struct FluidNCStatus
     // gate its auto-navigation to/from Job Progress so a knob jog doesn't
     // get mistaken for a job starting.
     bool jobActive = false;
+
+    // The last thing FluidNC said that wasn't a status report or a bare
+    // "ok" -- an "error:N", an "ALARM:N", or an "[MSG:...]". Status reports
+    // only carry the *state* (Alarm), never the reason, so without this an
+    // intermittent fault is invisible to anyone without a serial cable
+    // attached. Shown on the alarm screen.
+    char lastMessage[56] = {0};
+    uint32_t lastMessageAt = 0;
+
+    // True when lastMessage is an actual failure ("error:N"/"ALARM:N" or a
+    // dropped socket) rather than ordinary chatter. Failures are held for a
+    // while so later chatter can't bury them -- see noteMessage().
+    bool lastFailure = false;
+
+    // Bumped on every websocket drop. A pendant that loses its channel
+    // mid-cycle and silently reconnects looks, from the outside, exactly
+    // like a machine that alarmed on its own -- this tells the two apart.
+    uint16_t disconnects = 0;
 };
 
 // THREADING: update() does genuinely blocking work -- mDNS resolution
@@ -71,7 +89,10 @@ public:
     void softReset();     // 0x18
 
     // Line commands.
-    void home();                                       // $H
+    // home() is state-aware: it only unlocks first if the machine is
+    // actually alarmed, and then holds the $H back until the unlock has
+    // landed. See the comment on the definition for why.
+    void home();                                       // $X (if alarmed) then $H
     void jog(char axis, float deltaMm, float feedrate); // $J=G91 G21 <axis><delta> F<feed>
     void clearAlarm();                                  // $X
     void runFile(const char *filename);                 // $SD/Run=<file>
@@ -109,6 +130,13 @@ private:
     char lineBuf_[192];
     size_t lineLen_ = 0;
 
+    // Deferred half of home(): $X goes out immediately, $H waits for
+    // FluidNC to actually leave Alarm (or for the timeout below).
+    bool homePending_ = false;
+    uint32_t homeRequestedAt_ = 0;
+    static const uint32_t UNLOCK_SETTLE_MS = 150;
+    static const uint32_t UNLOCK_TIMEOUT_MS = 2000;
+
     uint32_t runStartedAt_ = 0;
     uint32_t doneAt_ = 0;
     static const uint32_t MIN_JOB_MS = 5000;
@@ -128,8 +156,14 @@ private:
     QueueHandle_t cmdQueue_ = nullptr;
     mutable SemaphoreHandle_t fileMutex_ = nullptr;
 
+    // Filters what FluidNC says down to what's worth showing on a 240px
+    // screen, and keeps failures from being buried by chatter.
+    void noteMessage(const char *line);
+    static const uint32_t FAILURE_STICKY_MS = 20000;
+
     void enqueue(bool raw, const char *text);
     void drainCommandQueue();
+    void servicePendingHome();
 
     bool resolveHost();
     void sendRaw(const char *s);

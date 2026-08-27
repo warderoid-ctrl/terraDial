@@ -54,23 +54,31 @@ namespace
 
         if (currentIndex == FILES_SCREEN_INDEX) uiFilesSetFocused(true);
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsOnShow();
+
+        // Walking into Progress on a live job re-arms the flag that the
+        // walk *out* cleared, so the job still hands the screen back to the
+        // dial when it finishes. Otherwise a mid-run detour to the Lights
+        // page permanently disarmed the end-of-job return.
+        if (currentIndex == JOB_PROGRESS_SCREEN_INDEX && fluidNC.status().jobActive)
+            jobFlowActive = true;
     }
 
-    // Maps a Home ring item index to what opening it does. Order
-    // matches ui_dial.cpp's DIAL_ITEMS: Jobs, Jog, Pen, Lights, Home,
-    // E-Stop, Alarm, Settings.
+    // Maps a Home ring item index to what opening it does. Order must
+    // match ui_dial.cpp's DIAL_ITEMS: Home, Jog, Pen, Jobs, Progress,
+    // E-Stop, Alarm, Lights, Settings.
     void onDialOpen(int cardIndex)
     {
         switch (cardIndex)
         {
-            case 0: goTo(FILES_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 0: goTo(HOME_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 1: goTo(JOG_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 2: goTo(PEN_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 3: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 4: goTo(HOME_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 3: goTo(FILES_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 4: goTo(JOB_PROGRESS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 5: goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 6: goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 7: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 7: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 8: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
         }
     }
 
@@ -87,15 +95,28 @@ namespace
     void checkAutoNav()
     {
         static MachineMode lastMode = MachineMode::Boot;
-        MachineMode mode = fluidNC.status().mode;
-        if (mode == lastMode) return;
+        static bool lastJobActive = false;
 
-        if (mode == MachineMode::Alarm)
+        MachineMode mode = fluidNC.status().mode;
+        bool jobActive = fluidNC.status().jobActive;
+
+        // A job we didn't start is recognised from the status report's SD:
+        // field, which can arrive a report or two after the state flips to
+        // Run. Watching only the mode transition would miss those: by the
+        // time we knew it was a job, lastMode was already Run and the edge
+        // had passed. So a job appearing counts as an edge of its own.
+        bool modeChanged = (mode != lastMode);
+        bool jobStarted = (jobActive && !lastJobActive);
+        lastJobActive = jobActive;
+        if (!modeChanged && !jobStarted) return;
+
+        if (mode == MachineMode::Alarm && modeChanged)
         {
             jobFlowActive = false;
             goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
         }
-        else if (mode == MachineMode::Run && lastMode != MachineMode::Run && fluidNC.status().jobActive)
+        else if (mode == MachineMode::Run && jobActive &&
+                 (lastMode != MachineMode::Run || jobStarted))
         {
             jobFlowActive = true;
             goTo(JOB_PROGRESS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
@@ -140,6 +161,9 @@ namespace UiNav
         // block here for ~1s every 3 seconds on EVERY screen, worst of all
         // when the controller wasn't on the network at all.
         if (currentIndex == LIGHTS_SCREEN_INDEX) uiLightsUpdate();
+
+        // Same idea: only the alarm screen cares, and only while it's up.
+        if (currentIndex == ALARM_CLEAR_SCREEN_INDEX) uiAlarmClearUpdate();
 
         int32_t delta = jogWheel.takeRotationDelta();
         ButtonEvent ev = jogWheel.takeButtonEvent();

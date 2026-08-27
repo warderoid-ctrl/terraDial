@@ -3,6 +3,7 @@
 #include "radial_ring.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
+#include "ui_widgets.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -18,8 +19,25 @@
 // now share one browsing idiom instead of two.
 namespace
 {
+    // Ring geometry. The arc is spread toward the top slot (see
+    // RadialRing::setSpread) exactly like the home dial: on a 1.28" panel a
+    // row of near-identical chips tells you nothing about which one the hub
+    // is describing, so the selection gets the angular room to be visibly
+    // the biggest thing on screen and the tail bunches up behind it.
+    //
+    // 60 at radius 80 leaves the selected chip 2px clear of the 96px hub,
+    // which is what caps the near size here.
+    const lv_coord_t RING_RADIUS = 80;
+    const lv_coord_t RING_SIZE_NEAR = 60;
+    const lv_coord_t RING_SIZE_FAR = 20;
+    const float RING_SPREAD = 0.55f;
+
     RadialRing ring;
     lv_obj_t *screenRoot = nullptr;
+
+    // Which icon size each chip is drawn at -- see uiRingIconSize. Reset
+    // whenever the list is rebuilt, since the chips are destroyed with it.
+    UiRingIconSize iconSize[RadialRing::MAX_ITEMS] = {UiRingIconSmall};
     lv_obj_t *hubNameLbl = nullptr;
     lv_obj_t *hubMetaLbl = nullptr;
     lv_obj_t *hubActionLbl = nullptr;
@@ -79,14 +97,24 @@ namespace
     // Same colour treatment as the dial's items, so the two rings read as
     // one system: the chip warms from the raised navy surface to the red
     // accent as it reaches the top slot.
-    void onItemStyle(lv_obj_t *chip, int, float nearness)
+    void onItemStyle(lv_obj_t *chip, int i, float nearness)
     {
         lv_opa_t mix = (lv_opa_t)(255 * nearness);
         lv_obj_set_style_bg_color(chip, lv_color_mix(Palette::accent(), Palette::bgSecondary(), mix), 0);
 
         lv_obj_t *icon = lv_obj_get_child(chip, 0);
-        if (icon)
-            lv_obj_set_style_text_color(icon, lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix), 0);
+        if (!icon) return;
+        lv_obj_set_style_text_color(icon, lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix), 0);
+
+        // A font change forces a label relayout, unlike the colour write
+        // above -- skip it unless the size bucket actually flipped, since
+        // this runs for every chip on every animation frame.
+        UiRingIconSize want = uiRingIconSize(nearness, iconSize[i]);
+        if (want != iconSize[i])
+        {
+            iconSize[i] = want;
+            lv_obj_set_style_text_font(icon, uiRingIconFont(want), 0);
+        }
     }
 
     lv_obj_t *makeChip()
@@ -104,7 +132,10 @@ namespace
 
         lv_obj_t *icon = lv_label_create(chip);
         lv_label_set_text(icon, LV_SYMBOL_FILE);
-        lv_obj_set_style_text_font(icon, &lv_font_montserrat_18, 0);
+        // Must match iconSize[]'s reset value below -- onItemStyle only
+        // writes a font when the bucket CHANGES, so a mismatch here leaves
+        // chips drawn at the wrong size until they happen to cross a band.
+        lv_obj_set_style_text_font(icon, uiRingIconFont(UiRingIconSmall), 0);
         lv_obj_center(icon);
         return chip;
     }
@@ -112,6 +143,7 @@ namespace
     void rebuildList()
     {
         ring.clear();
+        for (int i = 0; i < RadialRing::MAX_ITEMS; i++) iconSize[i] = UiRingIconSmall;
         int count = fluidNC.fileListCount();
         for (int i = 0; i < count && i < RadialRing::MAX_ITEMS; i++) ring.addItem(makeChip());
 
@@ -178,8 +210,14 @@ lv_obj_t *uiFilesCreate()
     // starts a plot, which is not a cheap mistake -- and it lets the list
     // scroll instead of squeezing every file onto one circle.
     // opaFar 0 makes chips fade right out as they reach the arc edge.
-    ring.create(screenRoot, 74, 56, 26, LV_OPA_COVER, LV_OPA_TRANSP);
+    //
+    // The pitch stays 30 degrees; the spread is what redistributes it, so
+    // the chips either side of the selection sit ~45 degrees out and the
+    // tail past them closes up toward the arc edge where it's fading out
+    // anyway. Same number of files on screen, far more legible ordering.
+    ring.create(screenRoot, RING_RADIUS, RING_SIZE_NEAR, RING_SIZE_FAR, LV_OPA_COVER, LV_OPA_TRANSP);
     ring.setArcLayout(30.0f, 132.0f);
+    ring.setSpread(RING_SPREAD);
     ring.setOnOpen(onCardOpen);
     ring.setOnItemStyle(onItemStyle);
     ring.setOnSelect(refreshHub);

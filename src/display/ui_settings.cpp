@@ -30,7 +30,19 @@
 namespace
 {
     lv_obj_t *screenRoot = nullptr;
+    // Ring geometry, spread toward the top slot like the home dial and Jobs
+    // (RadialRing::setSpread) so the selected category is unmistakably the
+    // biggest chip rather than one of four near-identical ones.
+    //
+    // 64 at radius 76 leaves the selected chip 3px clear of the 82px hub,
+    // which is what caps the near size here.
+    const lv_coord_t RING_RADIUS = 76;
+    const lv_coord_t RING_SIZE_NEAR = 64;
+    const lv_coord_t RING_SIZE_FAR = 26;
+    const float RING_SPREAD = 0.55f;
+
     RadialRing ring;
+
     lv_obj_t *hub = nullptr;
     lv_obj_t *hubNameLbl = nullptr;
     lv_obj_t *hubHintLbl = nullptr;
@@ -42,6 +54,9 @@ namespace
     const char *CATEGORY_NAMES[CATEGORY_COUNT] = {"Wi-Fi", "Machine", "Display", "About"};
     const char *CATEGORY_ICONS[CATEGORY_COUNT] = {
         LV_SYMBOL_WIFI, LV_SYMBOL_DRIVE, LV_SYMBOL_EYE_OPEN, LV_SYMBOL_LIST};
+
+    // Which icon size each chip is drawn at -- see uiRingIconSize.
+    UiRingIconSize iconSize[CATEGORY_COUNT] = {UiRingIconSmall};
 
     // -- shared text entry --
     // Delegates to the radial keyboard (display/radial_keyboard.h) rather
@@ -668,13 +683,23 @@ namespace
         else UiNav::goHome();
     }
 
-    void onItemStyle(lv_obj_t *chip, int, float nearness)
+    void onItemStyle(lv_obj_t *chip, int i, float nearness)
     {
         lv_opa_t mix = (lv_opa_t)(255 * nearness);
         lv_obj_set_style_bg_color(chip, lv_color_mix(Palette::accent(), Palette::bgSecondary(), mix), 0);
         lv_obj_t *icon = lv_obj_get_child(chip, 0);
-        if (icon)
-            lv_obj_set_style_text_color(icon, lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix), 0);
+        if (!icon) return;
+        lv_obj_set_style_text_color(icon, lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix), 0);
+
+        // A font change forces a label relayout, unlike the colour write
+        // above -- skip it unless the size bucket actually flipped, since
+        // this runs for every chip on every animation frame.
+        UiRingIconSize want = uiRingIconSize(nearness, iconSize[i]);
+        if (want != iconSize[i])
+        {
+            iconSize[i] = want;
+            lv_obj_set_style_text_font(icon, uiRingIconFont(want), 0);
+        }
     }
 
     lv_obj_t *makeChip(const char *icon)
@@ -692,7 +717,10 @@ namespace
 
         lv_obj_t *lbl = lv_label_create(chip);
         lv_label_set_text(lbl, icon);
-        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_18, 0);
+        // Must match iconSize[]'s initial value -- onItemStyle only writes a
+        // font when the bucket CHANGES, so a mismatch here leaves chips
+        // drawn at the wrong size until they happen to cross a band.
+        lv_obj_set_style_text_font(lbl, uiRingIconFont(UiRingIconSmall), 0);
         lv_obj_center(lbl);
         return chip;
     }
@@ -744,11 +772,13 @@ lv_obj_t *uiSettingsCreate()
     //
     // 40-degree pitch keeps all four inside the +/-132 arc at every
     // selection, so nothing is ever hidden -- unlike Jobs, this is a short
-    // fixed menu and you want to see the whole thing. opaFar stays at 110
-    // (not transparent like Jobs) so the far item stays legible instead of
-    // fading out at the arc edge.
-    ring.create(screenRoot, 74, 56, 34, LV_OPA_COVER, 110);
+    // fixed menu and you want to see the whole thing. The spread pushes the
+    // furthest one out to ~126 degrees, still inside the arc. opaFar stays
+    // at 110 (not transparent like Jobs) so it also stays legible there
+    // instead of fading out.
+    ring.create(screenRoot, RING_RADIUS, RING_SIZE_NEAR, RING_SIZE_FAR, LV_OPA_COVER, 110);
     ring.setArcLayout(40.0f, 132.0f);
+    ring.setSpread(RING_SPREAD);
     ring.setOnOpen(openCategory);
     ring.setOnSelect(refreshHub);
     ring.setOnItemStyle(onItemStyle);

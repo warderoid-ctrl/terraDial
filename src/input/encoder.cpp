@@ -60,6 +60,25 @@ void JogWheel::updateRotation()
 
     int32_t diff = ticks - lastRawTicks_;
     lastRawTicks_ = ticks;
+
+    // Throw away the sub-detent remainder when the direction reverses.
+    //
+    // This is what made the first turn back after a change of direction do
+    // nothing (reported as needing "two or more turns" to reverse). A
+    // detented wheel always comes to rest ON a latch, so a non-zero
+    // pendingTicks_ isn't real travel that's owed to us -- it's accumulated
+    // error, from the ISR reading both pins already changed on a fast spin
+    // and scoring that transition 0 instead of 2. Carried forward, that
+    // error is signed: a remainder of +2 left over from turning clockwise
+    // has to be paid off before a counter-clockwise detent can register, so
+    // the first turn back costs 6 ticks instead of 4 and looks ignored.
+    // Worse, it never settles -- the leftover just flips sign and taxes the
+    // NEXT reversal too.
+    //
+    // Same-direction turning is untouched: the remainder is only discarded
+    // when its sign opposes the new movement.
+    if ((diff > 0 && pendingTicks_ < 0) || (diff < 0 && pendingTicks_ > 0)) pendingTicks_ = 0;
+
     pendingTicks_ += diff;
 
     int32_t detents = pendingTicks_ / TICKS_PER_DETENT;

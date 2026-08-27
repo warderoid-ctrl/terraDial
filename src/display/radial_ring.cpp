@@ -38,6 +38,29 @@ void RadialRing::setArcLayout(float stepDeg, float halfArcDeg)
     layout();
 }
 
+void RadialRing::setSpread(float amount)
+{
+    if (amount < 0.0f) amount = 0.0f;
+    if (amount > 0.95f) amount = 0.95f; // 1.0 would flatten the curve to zero slope at the bottom
+    spread_ = amount;
+    layout();
+}
+
+// u + a*sin(pi*u)/pi over u in [-1,1], scaled back out to degrees.
+//
+// Picked because it pins both ends: it maps 0 to 0 and +/-limit to
+// +/-limit exactly, so the top slot stays at 12 o'clock and the far slot
+// stays at the bottom however hard the curve is bent -- only the slots in
+// between move. Its slope is (1 + a*cos(pi*u)), i.e. 1+a at the top and
+// 1-a at the bottom: spacing is stretched around the selection and
+// squeezed opposite it, monotonically, so items never reorder.
+float RadialRing::spreadAngle(float angle, float limit) const
+{
+    if (spread_ <= 0.0f || limit <= 0.0f) return angle;
+    float u = angle / limit;
+    return limit * (u + spread_ * sinf((float)M_PI * u) / (float)M_PI);
+}
+
 void RadialRing::addItem(lv_obj_t *item)
 {
     if (count_ >= MAX_ITEMS) return;
@@ -92,13 +115,20 @@ void RadialRing::layout()
         if (arcMode() && fabsf(angle) >= limit)
         {
             // Outside the arc: hidden outright, so it costs nothing to draw
-            // and can't be tapped.
+            // and can't be tapped. Tested on the even angle, so which items
+            // the arc admits doesn't change with the spread.
             lv_obj_add_flag(items_[i], LV_OBJ_FLAG_HIDDEN);
             continue;
         }
         lv_obj_clear_flag(items_[i], LV_OBJ_FLAG_HIDDEN);
 
-        float nearness = 1.0f - fabsf(angle) / limit; // 1 at the top slot, 0 at the edge
+        angle = spreadAngle(angle, limit);
+
+        // 1 at the top slot, 0 at the edge. Derived from the SPREAD angle,
+        // not the even one, so size tracks where an item actually sits:
+        // pushing the selection's neighbours further round the ring is what
+        // shrinks them, which is what makes the top item stand out.
+        float nearness = 1.0f - fabsf(angle) / limit;
         if (nearness < 0.0f) nearness = 0.0f;
 
         float rad = angle * (float)M_PI / 180.0f;
@@ -117,10 +147,31 @@ void RadialRing::layout()
 
         if (onItemStyle_) onItemStyle_(items_[i], i, nearness);
 
-        // Keep the selected item on top so it never renders under a
-        // neighbour mid-rotation.
-        if (i == selectedIndex_) lv_obj_move_foreground(items_[i]);
+        nearness_[i] = nearness;
     }
+
+    // Stack nearer items over further ones. A plain "selected to the front"
+    // isn't enough once spread_ bunches the far side up: down there chips
+    // overlap, and without an explicit order the one in front is whichever
+    // happens to sit later in the child list, which flips as the ring turns.
+    //
+    // Insertion sort on indices rather than a general sort: the list is
+    // tiny, already almost ordered (nearness varies smoothly around the
+    // ring), and this runs on every animation frame.
+    int order[MAX_ITEMS];
+    int n = 0;
+    for (int i = 0; i < count_; i++)
+    {
+        if (lv_obj_has_flag(items_[i], LV_OBJ_FLAG_HIDDEN)) continue;
+        int j = n++;
+        while (j > 0 && nearness_[order[j - 1]] > nearness_[i])
+        {
+            order[j] = order[j - 1];
+            j--;
+        }
+        order[j] = i;
+    }
+    for (int k = 0; k < n; k++) lv_obj_move_foreground(items_[order[k]]);
 }
 
 void RadialRing::animCb(void *inst, int32_t v)

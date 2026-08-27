@@ -15,7 +15,7 @@ small, and it avoids a build-time dependency on a real SVG rasteriser.
 Usage:  python tools/gen_lucide_icon.py
 Writes: src/display/icon_lightbulb.{h,cpp}
 
-IMPORTANT: pick a SIZE that looks right drawn 1:1. Do NOT scale these at
+IMPORTANT: pick SIZES that look right drawn 1:1. Do NOT scale these at
 runtime with lv_img_set_zoom -- transforming an image whose parent also has
 opacity < 255 pushes LVGL down an offscreen-layer path that proved unreliable
 on this board (the icon intermittently vanished entirely).
@@ -29,7 +29,10 @@ import os
 #   <path d="M9 18h6"/>
 #   <path d="M10 22h4"/>
 NAME = "lightbulb"
-SIZE = 20      # output px, drawn 1:1 on the dial
+# One bitmap per size the dial draws the icon at, since an LVGL image can't
+# be scaled at runtime here (see the note above). The dial swaps sources the
+# same way it swaps font sizes for the symbol icons beside it.
+SIZES = [("", 20), ("Large", 28)]
 VIEWBOX = 24.0
 SUPERSAMPLE = 4
 STROKE = 2.0
@@ -78,13 +81,13 @@ def dist_to_segment(px, py, a, b):
     return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 
 
-def rasterise(paths):
+def rasterise(paths, size):
     radius = STROKE / 2.0
-    scale = VIEWBOX / SIZE
+    scale = VIEWBOX / size
     rows = []
-    for y in range(SIZE):
+    for y in range(size):
         row = []
-        for x in range(SIZE):
+        for x in range(size):
             hits = 0
             for sy in range(SUPERSAMPLE):
                 for sx in range(SUPERSAMPLE):
@@ -104,46 +107,38 @@ def rasterise(paths):
     return rows
 
 
-def main():
-    rows = rasterise(build_paths())
-
-    for row in rows:  # eyeball check
-        print("".join(" .:-=+*#%@"[min(9, v // 26)] for v in row))
-
-    flat = [v for row in rows for v in row]
-    body = ""
-    for i in range(0, len(flat), 12):
-        body += "    " + " ".join("0x%02x," % v for v in flat[i:i + 12]) + "\n"
-
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    base = os.path.join(here, "src", "display", "icon_%s" % NAME)
-
-    header = '''#pragma once
+# ------------------------------------------------------------- output text
+HEADER_TEMPLATE = '''#pragma once
 #include <lvgl.h>
 
-// Lucide "%s" (lucide.dev/icons/%s), rasterised from the upstream SVG
-// to a %dx%d LV_IMG_CF_ALPHA_8BIT bitmap.
+// Lucide "%s" (lucide.dev/icons/%s), rasterised from the upstream SVG to
+// LV_IMG_CF_ALPHA_8BIT bitmaps -- one per size the dial draws it at.
 //
-// It's alpha-only, so it carries no colour of its own -- LVGL paints it with
-// the object's `img_recolor` style. That lets the dial tint it exactly like
-// the LV_SYMBOL_* text icons it sits alongside (see ui_dial.cpp), which a
-// normal colour image couldn't do.
+// They are alpha-only, so they carry no colour of their own: LVGL paints
+// them with the object's `img_recolor` style. That lets the dial tint the
+// bulb exactly like the LV_SYMBOL_* text icons it sits alongside (see
+// ui_dial.cpp), which a normal colour image could not do.
 //
-// Drawn 1:1. Do NOT scale it with lv_img_set_zoom: transforming an image
-// whose parent also has opacity < 255 sends LVGL down an offscreen-layer
-// path that proved unreliable here -- the icon intermittently vanished.
+// Each is drawn 1:1 and the dial picks a bitmap rather than resizing one.
+// Do NOT scale these with lv_img_set_zoom: transforming an image whose
+// parent also has opacity < 255 sends LVGL down an offscreen-layer path
+// that proved unreliable here -- the icon intermittently vanished.
 //
 // Regenerate with: python tools/gen_lucide_icon.py
-extern const lv_img_dsc_t icon%s;
-''' % (NAME, NAME, SIZE, SIZE, NAME.capitalize())
+%s
+'''
 
-    source = '''#include "icon_%s.h"
+SOURCE_TEMPLATE = '''#include "icon_%s.h"
 
 // Generated -- see icon_%s.h. One byte of alpha per pixel.
-static const uint8_t ICON_%s_MAP[] = {
+
+%s
+'''
+
+BODY_TEMPLATE = '''static const uint8_t %s_MAP[] = {
 %s};
 
-const lv_img_dsc_t icon%s = {
+const lv_img_dsc_t %s = {
     {
         LV_IMG_CF_ALPHA_8BIT, // header.cf
         0,                    // header.always_zero
@@ -151,14 +146,38 @@ const lv_img_dsc_t icon%s = {
         %d,                   // header.w
         %d,                   // header.h
     },
-    sizeof(ICON_%s_MAP),
-    ICON_%s_MAP,
-};
-''' % (NAME, NAME, NAME.upper(), body, NAME.capitalize(), SIZE, SIZE, NAME.upper(), NAME.upper())
+    sizeof(%s_MAP),
+    %s_MAP,
+};'''
 
-    open(base + ".h", "w").write(header)
-    open(base + ".cpp", "w").write(source)
-    print("wrote %s.{h,cpp}  (%dx%d, %d bytes)" % (base, SIZE, SIZE, SIZE * SIZE))
+
+def main():
+    paths = build_paths()
+    decls = []
+    bodies = []
+    for suffix, size in SIZES:
+        rows = rasterise(paths, size)
+        for row in rows:  # eyeball check
+            print("".join(" .:-=+*#%@"[min(9, v // 26)] for v in row))
+        print()
+
+        sym = "icon%s%s" % (NAME.capitalize(), suffix)
+        macro = ("ICON_%s%s" % (NAME, suffix)).upper()
+        flat = [v for row in rows for v in row]
+        data = ""
+        for i in range(0, len(flat), 12):
+            data += "    " + " ".join("0x%02x," % v for v in flat[i:i + 12]) + "\n"
+
+        decls.append("// %dx%d\nextern const lv_img_dsc_t %s;" % (size, size, sym))
+        bodies.append(BODY_TEMPLATE % (macro, data, sym, size, size, macro, macro))
+
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    base = os.path.join(here, "src", "display", "icon_%s" % NAME)
+
+    open(base + ".h", "w").write(HEADER_TEMPLATE % (NAME, NAME, "\n".join(decls)))
+    open(base + ".cpp", "w").write(SOURCE_TEMPLATE % (NAME, NAME, "\n\n".join(bodies)))
+    print("wrote %s.{h,cpp}  (%s)" % (
+        base, ", ".join("%dx%d" % (sz, sz) for _, sz in SIZES)))
 
 
 if __name__ == "__main__":

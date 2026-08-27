@@ -34,7 +34,9 @@ W = 240
 FONT = "Segoe UI, Roboto, Helvetica, Arial, sans-serif"
 
 # --- ring geometry, from radial_ring.h defaults + per-screen overrides ---
-DIAL_RADIUS, DIAL_NEAR, DIAL_FAR = 74, 62, 30
+DIAL_RADIUS, DIAL_NEAR, DIAL_FAR = 76, 66, 24
+DIAL_SPREAD = 0.55  # RadialRing::setSpread on the home dial
+ARC_SPREAD = 0.55   # ...and on the Jobs/Settings arcs
 
 
 def head(parts):
@@ -109,6 +111,10 @@ def icon(parts, cx, cy, kind, size, col):
         parts.append('<path d="M%g %g l%g %g l%g %g M%g %g v%g h%g v-%g" %s/>'
                      % (cx - s, cy, s, -s * .85, s, s * .85, cx - s * .7, cy - s * .1,
                         s * 1.1, s * 1.4, s * 1.1, st))
+    elif kind == "gauge":  # a clock face -- job progress is a time story
+        circle(parts, cx, cy, s * .85, "none", col, lw)
+        parts.append('<path d="M%g %g v-%g M%g %g h%g" %s/>'
+                     % (cx, cy, s * .5, cx, cy, s * .42, st))
     elif kind == "stop":
         rect(parts, cx - s * .7, cy - s * .7, s * 1.4, s * 1.4, s * .2, col)
     elif kind == "warn":
@@ -154,13 +160,26 @@ def back_button(parts):
 
 
 # ------------------------------------------------------- ring renderers
+def spread_angle(ang, amount, limit=180.0):
+    """RadialRing::spreadAngle -- opens the spacing up near the top slot and
+    squeezes it shut near the bottom, pinning both ends in place."""
+    if not amount:
+        return ang
+    u = ang / limit
+    return limit * (u + amount * math.sin(math.pi * u) / math.pi)
+
+
 def full_ring(parts, items, selected, radius=DIAL_RADIUS, near=DIAL_NEAR, far=DIAL_FAR,
-              opa_far=110 / 255.0):
-    """Home's evenly-spread full circle (RadialRing default mode)."""
+              opa_far=100 / 255.0, spread=DIAL_SPREAD):
+    """Home's full circle (RadialRing default mode), with the dial's spread."""
     n = len(items)
     step = 360.0 / n
-    for i, (kind, alert) in enumerate(items):
-        ang = ((i - selected) * step + 180) % 360 - 180
+    # Far items first, so the bunched-up bottom stacks the way the firmware
+    # orders it (nearer chips in front).
+    order = sorted(range(n), key=lambda i: -abs(((i - selected) * step + 180) % 360 - 180))
+    for i in order:
+        kind, alert = items[i]
+        ang = spread_angle(((i - selected) * step + 180) % 360 - 180, spread)
         nearness = 1 - abs(ang) / 180.0
         size = far + (near - far) * nearness
         rad = math.radians(ang)
@@ -174,13 +193,17 @@ def full_ring(parts, items, selected, radius=DIAL_RADIUS, near=DIAL_NEAR, far=DI
             icon(parts, cx, cy, kind, size * .45, mix(ACCENT_FG, TEXT_MUTED, nearness))
 
 
-def arc_ring(parts, kinds, selected, step_deg, half_arc, radius=74, near=56, far=26,
-             opa_far=0.0):
+def arc_ring(parts, kinds, selected, step_deg, half_arc, radius=80, near=60, far=20,
+             opa_far=0.0, spread=ARC_SPREAD):
     """Jobs/Settings open arc -- bottom left clear for the back button."""
-    for i, kind in enumerate(kinds):
+    # Far chips first, so the bunched-up tail stacks the way the firmware
+    # orders it (nearer chips in front).
+    for i in sorted(range(len(kinds)), key=lambda i: -abs((i - selected) * step_deg)):
+        kind = kinds[i]
         ang = (i - selected) * step_deg
         if abs(ang) >= half_arc:
             continue
+        ang = spread_angle(ang, spread, half_arc)
         nearness = max(0.0, 1 - abs(ang) / half_arc)
         size = far + (near - far) * nearness
         rad = math.radians(ang)
@@ -201,10 +224,10 @@ def hub(parts, size, lines):
 def screen_home():
     p = []
     head(p)
-    items = [("file", 0), ("target", 0), ("pen", 0), ("bulb", 0),
-             ("home", 0), ("stop", 1), ("warn", 0), ("gear", 0)]
+    items = [("home", 0), ("target", 0), ("pen", 0), ("file", 0),
+             ("gauge", 0), ("stop", 1), ("warn", 0), ("bulb", 0), ("gear", 0)]
     full_ring(p, items, 0)
-    hub(p, 82, [("Jobs", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
+    hub(p, 82, [("Home XY", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
     tail(p)
     return "home-dial", p
 
@@ -300,7 +323,7 @@ def screen_settings_ring():
     p = []
     head(p)
     arc_ring(p, ["wifi", "drive", "eye", "list"], 0, 40.0, 132.0,
-             near=56, far=34, opa_far=110 / 255.0)
+             radius=76, near=64, far=26, opa_far=110 / 255.0)
     hub(p, 82, [("Wi-Fi", -8, 14, TEXT, "600"), ("open", 12, 12, ACCENT, "400")])
     back_button(p)
     tail(p)
@@ -340,12 +363,12 @@ def screen_job_progress():
     p.append('<path d="M%g %g A106 106 0 %d 1 %g %g" stroke="%s" stroke-width="12" fill="none"/>'
              % (x0, y0, large, x1, y1, ACCENT))
     text(p, 120, 64, "flow_red.gcode", 12, TEXT_MUTED)
+    text(p, 120, 84, "6:18   ~9 min left", 12, TEXT_MUTED)
     text(p, 120, 106, "42%", 32, TEXT, "600")
     circle(p, 86, 164, 29, BG_SECONDARY)
     icon(p, 86, 164, "pause", 20, TEXT)
     circle(p, 154, 164, 29, ALERT)
     icon(p, 154, 164, "stop", 16, ACCENT_FG)
-    text(p, 120, 206, "pen down", 12, ACCENT_SECONDARY)
     tail(p)
     return "job-progress", p
 

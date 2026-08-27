@@ -67,10 +67,12 @@ lv_obj_t *uiHomeCreate()
 
 void uiHomeTrigger()
 {
-    // $X first: FluidNC won't home while alarmed, and homing after an
-    // unrelated alarm is exactly the "clear the bed, then home" flow this
-    // screen exists for.
-    fluidNC.clearAlarm();
+    // FluidNC won't home while alarmed, and homing after an unrelated
+    // alarm is exactly the "clear the bed, then home" flow this screen
+    // exists for -- but the unlock belongs to the client, which knows
+    // whether there is actually an alarm to clear and paces the $X and $H
+    // apart. Sending $X unconditionally from here alarmed the machine when
+    // homing twice in a row (see FluidNCClient::home()).
     fluidNC.home();
     // Back to the dial, whose hub shows the live machine state -- otherwise
     // confirming leaves you on an unchanged screen with no sign anything

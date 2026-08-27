@@ -3,21 +3,21 @@
 <circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
 <clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
 <g clip-path="url(#face)">
-<circle cx="120" cy="46" r="28" fill="#e94560" opacity="1"/>
-<path d="M114.33 51.67 a5.67 5.67 0 0 1 11.34 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M110.55 49.67 a9.45 9.45 0 0 1 18.9 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M107.4 47.67 a12.6 12.6 0 0 1 25.2 0" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="120" cy="53.56" r="1.37455" fill="#ffffff"/>
-<circle cx="167.566" cy="63.3127" r="24.6667" fill="#a63f60" opacity="0.827689"/>
-<rect x="156.466" y="55.5427" width="22.2" height="15.54" rx="2.775" fill="none" stroke="#e1e3e6" stroke-width="1"/>
-<circle cx="167.566" cy="63.3127" r="3.552" fill="#e1e3e6"/>
-<circle cx="192.876" cy="107.15" r="21.3333" fill="#643a60" opacity="0.655377"/>
-<path d="M183.276 107.15 q9.6 -9.12 19.2 0 q-9.6 9.12 -19.2 0" stroke="#c3c7ce" stroke-width="1.74545" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="192.876" cy="107.15" r="2.88" fill="none" stroke="#c3c7ce" stroke-width="1.74545"/>
-<circle cx="184.086" cy="157" r="18" fill="#223560" opacity="0.483066"/>
-<path d="M177.606 152.545 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M177.606 157 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M177.606 161.455 h12.96" stroke="#a5abb6" stroke-width="1.47273" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="181.085" cy="165.218" r="13.7901" fill="#183460" opacity="0.45502"/>
+<path d="M176.12 161.805 h9.9289" stroke="#a0a6b2" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M176.12 165.218 h9.9289" stroke="#a0a6b2" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M176.12 168.631 h9.9289" stroke="#a0a6b2" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="194.384" cy="135.591" r="17.3415" fill="#403760" opacity="0.561303"/>
+<path d="M186.58 135.591 q7.80366 -7.41347 15.6073 0 q-7.80366 7.41347 -15.6073 0" stroke="#b2b8c1" stroke-width="1.41885" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="194.384" cy="135.591" r="2.3411" fill="none" stroke="#b2b8c1" stroke-width="1.41885"/>
+<circle cx="185.024" cy="80.6575" r="23.5329" fill="#873d60" opacity="0.746598"/>
+<rect x="174.435" y="73.2446" width="21.1796" height="14.8257" rx="2.64745" fill="none" stroke="#d2d6db" stroke-width="1"/>
+<circle cx="185.024" cy="80.6575" r="3.38873" fill="#d2d6db"/>
+<circle cx="120" cy="44" r="32" fill="#e94560" opacity="1"/>
+<path d="M113.52 50.48 a6.48 6.48 0 0 1 12.96 0" stroke="#ffffff" stroke-width="2.61818" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M109.2 48.48 a10.8 10.8 0 0 1 21.6 0" stroke="#ffffff" stroke-width="2.61818" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M105.6 46.48 a14.4 14.4 0 0 1 28.8 0" stroke="#ffffff" stroke-width="2.61818" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="120" cy="52.64" r="1.57091" fill="#ffffff"/>
 <circle cx="120" cy="120" r="41" fill="#0f3460" stroke="#5c7a9e" stroke-width="1"/>
 <text x="120" y="112" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">Wi-Fi</text>
 <text x="120" y="132" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#e94560" text-anchor="middle" dominant-baseline="central">open</text>

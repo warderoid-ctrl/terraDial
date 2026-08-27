@@ -34,3 +34,22 @@ lv_obj_t *uiMakeSwitch(lv_obj_t *parent, bool checked);
 // Full-width accent pill with a centered label. outLabel receives the label
 // so callers can retitle it later.
 lv_obj_t *uiMakeButton(lv_obj_t *parent, const char *text, lv_obj_t **outLabel = nullptr);
+
+// Icon size for a radial-ring chip, picked from its `nearness` (1 at the
+// top slot, 0 at the far edge -- see RadialRing::setOnItemStyle).
+//
+// The rings' chips span roughly 20..66px now that their spacing is spread
+// toward the top slot, which is far too wide a range for one glyph size: a
+// 14px icon is lost on the selected chip and a 32px one doesn't fit on the
+// bunched-up far ones at all. Shared by the dial, Jobs and Settings so the
+// three rings step through the same sizes at the same distances.
+enum UiRingIconSize { UiRingIconSmall, UiRingIconMedium, UiRingIconLarge };
+
+// `current` is the size the chip is drawn at now; pass it back in each time
+// (callers keep a small per-chip array). It's used for hysteresis: the
+// thresholds are bracketed rather than single-valued so a chip parked near
+// a boundary can't flicker between two sizes on float noise. That bit us
+// before, when 90 degrees -- a rest position for an 8-item ring -- sat
+// exactly on the one threshold there was.
+UiRingIconSize uiRingIconSize(float nearness, UiRingIconSize current);
+const lv_font_t *uiRingIconFont(UiRingIconSize size);

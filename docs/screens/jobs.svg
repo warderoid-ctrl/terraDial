@@ -3,20 +3,20 @@
 <circle cx="120" cy="120" r="116" fill="#1a1a2e"/>
 <clipPath id="face"><circle cx="120" cy="120" r="116"/></clipPath>
 <g clip-path="url(#face)">
-<circle cx="55.9141" cy="83" r="21.1818" fill="#853d60" opacity="0.545455"/>
-<path d="M50.195 73.4682 h7.62545 l3.81273 3.81273 v15.2509 h-11.4382 z" stroke="#d2d5da" stroke-width="1.73306" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="83" cy="55.9141" r="24.5909" fill="#b74160" opacity="0.772727"/>
-<path d="M76.3605 44.8482 h8.85273 l4.42636 4.42636 v17.7055 h-13.2791 z" stroke="#e8eaec" stroke-width="2.01198" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="120" cy="46" r="28" fill="#e94560" opacity="1"/>
-<path d="M112.44 33.4 h10.08 l5.04 5.04 v20.16 h-15.12 z" stroke="#ffffff" stroke-width="2.29091" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="157" cy="55.9141" r="24.5909" fill="#b74160" opacity="0.772727"/>
-<path d="M150.36 44.8482 h8.85273 l4.42636 4.42636 v17.7055 h-13.2791 z" stroke="#e8eaec" stroke-width="2.01198" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="184.086" cy="83" r="21.1818" fill="#853d60" opacity="0.545455"/>
-<path d="M178.367 73.4682 h7.62545 l3.81273 3.81273 v15.2509 h-11.4382 z" stroke="#d2d5da" stroke-width="1.73306" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="194" cy="120" r="17.7727" fill="#543960" opacity="0.318182"/>
-<path d="M189.201 112.002 h6.39818 l3.19909 3.19909 v12.7964 h-9.59727 z" stroke="#bbc0c8" stroke-width="1.45413" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-<circle cx="184.086" cy="157" r="14.3636" fill="#223560" opacity="0.0909091"/>
-<path d="M180.208 150.536 h5.17091 l2.58545 2.58545 v10.3418 h-7.75636 z" stroke="#a5abb6" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="184.3" cy="167.598" r="10.8317" fill="#183460" opacity="0.041586"/>
+<path d="M181.375 162.723 h3.89942 l1.94971 1.94971 v7.79884 h-5.84913 z" stroke="#a0a6b2" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="195.439" cy="146.627" r="13.4181" fill="#343660" opacity="0.170903"/>
+<path d="M191.816 140.588 h4.8305 l2.41525 2.41525 v9.66101 h-7.24575 z" stroke="#acb2bc" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="40.6179" cy="110.076" r="17.4433" fill="#603a60" opacity="0.372166"/>
+<path d="M35.9082 102.226 h6.2796 l3.1398 3.1398 v12.5592 h-9.41939 z" stroke="#c0c5cc" stroke-width="1.42718" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="199.382" cy="110.076" r="17.4433" fill="#603a60" opacity="0.372166"/>
+<path d="M194.672 102.226 h6.2796 l3.1398 3.1398 v12.5592 h-9.41939 z" stroke="#c0c5cc" stroke-width="1.42718" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="63.2999" cy="63.5633" r="23.1616" fill="#9e3f60" opacity="0.658081"/>
+<path d="M57.0463 53.1406 h8.33818 l4.16909 4.16909 v16.6764 h-12.5073 z" stroke="#dddfe3" stroke-width="1.89504" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="176.7" cy="63.5633" r="23.1616" fill="#9e3f60" opacity="0.658081"/>
+<path d="M170.446 53.1406 h8.33818 l4.16909 4.16909 v16.6764 h-12.5073 z" stroke="#dddfe3" stroke-width="1.89504" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="120" cy="40" r="30" fill="#e94560" opacity="1"/>
+<path d="M111.9 26.5 h10.8 l5.4 5.4 v21.6 h-16.2 z" stroke="#ffffff" stroke-width="2.45455" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="120" cy="120" r="48" fill="#0f3460" stroke="#5c7a9e" stroke-width="1"/>
 <text x="120" y="102" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">flow_red.gcode</text>
 <text x="120" y="124" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">8.2 MB</text>

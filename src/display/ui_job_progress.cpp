@@ -1,20 +1,93 @@
 #include "ui_job_progress.h"
-#include "ui_pen.h"
 #include "palette.h"
 #include "ui_screen_shell.h"
 #include <stdio.h>
+#include <string.h>
 
-// No fabricated time-remaining: FluidNC's SD:<pct>,<filename> status field
-// (see fluidnc_client.cpp) only gives a percentage, not an ETA, unlike the
-// mockup's "~12 min left" -- that number has no real source, so it's left
-// out rather than invented.
+// Elapsed time is exact. The time-remaining estimate is derived here rather
+// than reported by the machine -- see the ETA note below for where it comes
+// from and why it's the shape it is. (This file used to carry no ETA at all,
+// on the grounds that FluidNC gives a percentage and nothing else. That was
+// the right call for the mockup's flat "~12 min left", which really did have
+// no source; a trailing-rate estimate does have one.)
 namespace
 {
     lv_obj_t *ring = nullptr;
     lv_obj_t *filenameLbl = nullptr;
     lv_obj_t *percentLbl = nullptr;
-    lv_obj_t *penPillLbl = nullptr;
+    lv_obj_t *timingLbl = nullptr;
     lv_obj_t *pauseLbl = nullptr;
+
+    // -- elapsed / ETA --
+    //
+    // FluidNC's SD:<pct> is the fraction of the file's BYTES consumed, not
+    // work done, and G-code byte density is nowhere near uniform: a dense
+    // hatch fill is thousands of byte-heavy short segments that plot slowly,
+    // while one long G1 is a handful of bytes that takes a minute. So the
+    // raw percentage races ahead through sparse regions and stalls in dense
+    // ones. That's a property of the source -- no display treatment makes it
+    // linear, which is why the number itself is left exactly as reported.
+    //
+    // The estimate therefore extrapolates from the RECENT rate (percent per
+    // second over a trailing ~60s window) rather than the whole-job average.
+    // It goes wrong for a minute or so after the drawing changes character
+    // and then re-converges, which beats a figure that is confidently wrong
+    // from start to finish. It stays prefixed with "~" to say so.
+    const uint32_t SAMPLE_INTERVAL_MS = 2000;
+    const int SAMPLE_COUNT = 30; // x 2s = a 60s trailing window
+
+    struct ProgressSample
+    {
+        uint32_t ms;
+        float pct;
+    };
+    ProgressSample samples[SAMPLE_COUNT];
+    int sampleHead = 0;   // next slot to write
+    int sampleCount = 0;  // slots filled, capped at SAMPLE_COUNT
+    uint32_t lastSampleAt = 0;
+
+    uint32_t jobStartedAt = 0;
+    bool jobWasActive = false;
+    char trackedFile[sizeof(FluidNCStatus::jobFilename)] = {0};
+
+    void resetTracking(const FluidNCStatus &st)
+    {
+        sampleHead = 0;
+        sampleCount = 0;
+        lastSampleAt = 0;
+        jobStartedAt = millis();
+        snprintf(trackedFile, sizeof(trackedFile), "%s", st.jobFilename);
+    }
+
+    // Minutes remaining, or -1 while there isn't enough evidence to say.
+    //
+    // Both guards matter: without a real span of time the window is too
+    // short to average out the percentage's own coarse granularity, and
+    // without real movement across it the divisor approaches zero and the
+    // estimate flies off to hours. Showing nothing is better than showing
+    // a number that swings by an order of magnitude between refreshes.
+    float etaMinutes(float pct)
+    {
+        if (sampleCount < 2) return -1.0f;
+        const ProgressSample &oldest = samples[(sampleHead - sampleCount + SAMPLE_COUNT) % SAMPLE_COUNT];
+        uint32_t spanMs = millis() - oldest.ms;
+        float gained = pct - oldest.pct;
+        if (spanMs < 20000 || gained <= 0.5f) return -1.0f;
+
+        float remaining = 100.0f - pct;
+        if (remaining <= 0.0f) return 0.0f;
+        return (remaining / gained) * (spanMs / 60000.0f);
+    }
+
+    void formatElapsed(char *buf, size_t n, uint32_t ms)
+    {
+        uint32_t secs = ms / 1000;
+        if (secs >= 3600)
+            snprintf(buf, n, "%lu:%02lu:%02lu", (unsigned long)(secs / 3600),
+                     (unsigned long)((secs / 60) % 60), (unsigned long)(secs % 60));
+        else
+            snprintf(buf, n, "%lu:%02lu", (unsigned long)(secs / 60), (unsigned long)(secs % 60));
+    }
 
     void pauseBtnCb(lv_event_t *e) { (void)e; uiJobProgressTogglePause(); }
 
@@ -55,6 +128,14 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_set_style_text_align(filenameLbl, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(filenameLbl, LV_ALIGN_CENTER, 0, -56);
 
+    // Sits ABOVE the percentage, not below it: below is where the pause and
+    // stop buttons are (y +15..+73), and a line long enough to hold both the
+    // clock and the estimate is wide enough to run into both of them.
+    timingLbl = lv_label_create(scr);
+    lv_obj_set_style_text_font(timingLbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(timingLbl, Palette::textMuted(), 0);
+    lv_obj_align(timingLbl, LV_ALIGN_CENTER, 0, -40);
+
     percentLbl = lv_label_create(scr);
     lv_obj_set_style_text_font(percentLbl, &lv_font_montserrat_32, 0);
     lv_obj_set_style_text_color(percentLbl, lv_color_white(), 0);
@@ -81,11 +162,6 @@ lv_obj_t *uiJobProgressCreate()
     lv_obj_set_style_text_color(stopLbl, Palette::accentFg(), 0);
     lv_obj_center(stopLbl);
 
-    penPillLbl = lv_label_create(scr);
-    lv_obj_set_style_text_font(penPillLbl, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(penPillLbl, Palette::accentSecondary(), 0);
-    lv_obj_align(penPillLbl, LV_ALIGN_BOTTOM_MID, 0, -34); // was -14 -- leaves room for the back button below it
-
     addBackButton(scr);
 
     return scr;
@@ -102,8 +178,48 @@ void uiJobProgressUpdate(const FluidNCStatus &st)
     snprintf(buf, sizeof(buf), "%d%%", pct);
     lv_label_set_text(percentLbl, buf);
 
+    // Restart the clock on a new job -- either the job flag going up, or the
+    // filename changing under us (back-to-back runs can do that without
+    // jobActive ever dropping between them).
+    if (st.jobActive && (!jobWasActive || strncmp(trackedFile, st.jobFilename, sizeof(trackedFile)) != 0))
+        resetTracking(st);
+    jobWasActive = st.jobActive;
+
+    if (!st.jobActive)
+    {
+        lv_label_set_text(timingLbl, "");
+    }
+    else
+    {
+        // Sample only while actually cutting. A pause would otherwise feed
+        // the window a stretch of time with no progress in it, dragging the
+        // computed rate toward zero and the estimate toward infinity -- the
+        // ETA would balloon while the machine sat still and then take a full
+        // window to recover after resuming.
+        if (st.mode == MachineMode::Run && st.jobPercent >= 0 &&
+            (lastSampleAt == 0 || millis() - lastSampleAt >= SAMPLE_INTERVAL_MS))
+        {
+            lastSampleAt = millis();
+            samples[sampleHead].ms = lastSampleAt;
+            samples[sampleHead].pct = st.jobPercent;
+            sampleHead = (sampleHead + 1) % SAMPLE_COUNT;
+            if (sampleCount < SAMPLE_COUNT) sampleCount++;
+        }
+
+        char elapsed[16];
+        formatElapsed(elapsed, sizeof(elapsed), millis() - jobStartedAt);
+
+        char line[64];
+        float eta = etaMinutes(st.jobPercent);
+        if (st.mode == MachineMode::Hold)      snprintf(line, sizeof(line), "%s   paused", elapsed);
+        else if (eta < 0.0f || eta > 24 * 60)  snprintf(line, sizeof(line), "%s", elapsed);
+        else if (eta < 1.0f)                   snprintf(line, sizeof(line), "%s   <1 min left", elapsed);
+        else if (eta < 60.0f)                  snprintf(line, sizeof(line), "%s   ~%d min left", elapsed, (int)(eta + 0.5f));
+        else                                   snprintf(line, sizeof(line), "%s   ~%dh %02dm left", elapsed, (int)eta / 60, (int)eta % 60);
+        lv_label_set_text(timingLbl, line);
+    }
+
     lv_label_set_text(filenameLbl, st.jobFilename[0] ? st.jobFilename : "--");
-    lv_label_set_text(penPillLbl, uiPenIsDown() ? "pen down" : "pen up");
     lv_label_set_text(pauseLbl, st.mode == MachineMode::Hold ? LV_SYMBOL_PLAY : LV_SYMBOL_PAUSE);
 }
 

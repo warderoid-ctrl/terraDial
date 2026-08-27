@@ -3,10 +3,11 @@
 
 // The home dial's rotating ring, as a reusable widget.
 //
-// Items sit evenly around a circle; rotating steps the ring with a springy
+// Items sit around a circle; rotating steps the ring with a springy
 // overshoot so the selected item settles at the top slot. Items shrink and
 // fade continuously with angular distance from that slot, so the selection
-// is obvious without any separate highlight.
+// is obvious without any separate highlight. Spacing is even by default and
+// can be biased toward the top slot with setSpread().
 //
 // Extracted from ui_dial.cpp so the Jobs screen can present SD files the
 // same way instead of inventing a second browsing idiom. The widget owns
@@ -17,8 +18,9 @@ class RadialRing
 public:
     static const int MAX_ITEMS = 40; // matches SdFileList::MAX_FILES, the largest list that reaches a ring
 
-    // radius/sizes are in px on the 240x240 panel. Defaults are the values
-    // the home dial was tuned to on real hardware.
+    // radius/sizes are in px on the 240x240 panel. The defaults are the
+    // original evenly-spaced tuning; every screen now overrides them, since
+    // each has a different hub size to clear and its own spread to suit.
     void create(lv_obj_t *parent,
                 lv_coord_t radius = 74,
                 lv_coord_t sizeNear = 62,
@@ -40,6 +42,23 @@ public:
     // Arc mode is a linear list, not a loop -- selection clamps at both ends
     // rather than wrapping, which is what a file list should do.
     void setArcLayout(float stepDeg, float halfArcDeg);
+
+    // Bends the even angular spacing so slots near the top slot are pushed
+    // apart and slots near the bottom bunch together -- the ring reads like
+    // a perspective view rather than a flat circle.
+    //
+    // Why: on a 1.28" panel eight evenly spread chips are all roughly the
+    // same size and 45 degrees apart, and users reported they couldn't tell
+    // at a glance which one was selected or what its neighbours were.
+    // Spending the ring's angular budget where the eye actually is -- the
+    // top -- buys the selection and its immediate neighbours room to grow,
+    // and costs nothing but legibility of the items you're rotating away
+    // from anyway.
+    //
+    // `amount` is 0 for the plain even circle up to just under 1 for the
+    // most extreme bend; values >= 1 make the mapping non-monotonic (items
+    // would swap order), so it is clamped.
+    void setSpread(float amount);
 
     // Registers a caller-built chip. It MUST be a child of the same parent
     // passed to create(), since placement uses lv_obj_align against it.
@@ -76,6 +95,7 @@ public:
 private:
     lv_obj_t *parent_ = nullptr;
     lv_obj_t *items_[MAX_ITEMS] = {nullptr};
+    float nearness_[MAX_ITEMS] = {0.0f}; // per-item, from the last layout pass -- used to stack them
     int count_ = 0;
     int selectedIndex_ = 0;
 
@@ -105,12 +125,18 @@ private:
 
     bool visible_ = true;
 
+    // See setSpread(). 0 = even spacing.
+    float spread_ = 0.0f;
+
     bool arcMode() const { return fixedStepDeg_ > 0.0f; }
     float stepDeg() const
     {
         if (arcMode()) return fixedStepDeg_;
         return count_ > 0 ? 360.0f / count_ : 360.0f;
     }
+    // Maps an evenly-spaced angle to its spread position. Identity when
+    // spread_ is 0.
+    float spreadAngle(float angle, float limit) const;
     void layout();
     void animateTo(int32_t targetX100);
     void stepSelection(int delta);

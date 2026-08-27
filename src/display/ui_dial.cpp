@@ -2,6 +2,7 @@
 #include "palette.h"
 #include "radial_ring.h"
 #include "icon_lightbulb.h"
+#include "ui_widgets.h"
 
 // Home: a radial dial -- 8 destinations arranged on a ring around a centre
 // hub, per the "TerraPen Dial UI" mockup. The item nearest the top slot is
@@ -9,8 +10,18 @@
 // mechanics live in RadialRing (shared with the Jobs screen); this file
 // supplies the items, their colours, and the hub.
 //
-// "Job Progress" isn't a destination here -- ui_nav auto-navigates to it
-// when a job starts.
+// The spacing is deliberately uneven (RadialRing::setSpread): the top of the
+// ring is stretched open and the bottom squeezed shut. Testers liked the
+// dial but couldn't read it -- eight equal chips 45 degrees apart on a 1.28"
+// panel all look much the same. Spending the angular budget where you're
+// looking lets the selection and its two neighbours grow enough to tell
+// apart, at the cost of the items you're rotating away from.
+//
+// Job Progress is both auto-navigated to when a job starts AND a dial item
+// in its own right, because those solve different problems: the auto-nav
+// shows you the job without asking, the dial item gets you back to it after
+// you've wandered off to change the lights mid-run. Without the item, the
+// only route back was to wait for the job to end.
 namespace
 {
     struct DialItem
@@ -29,25 +40,51 @@ namespace
         bool alwaysAlert;
     };
 
+    // Ordered by how a session actually runs, not by category: you home,
+    // you jog to the work, you set the pen, then you pick a job. The ring
+    // rests on item 0, so the first thing under the selection when the
+    // dial comes up is the first thing you do. Setup-and-go items lead;
+    // the two you reach for when something is wrong (E-Stop, Alarm) sit
+    // mid-ring where the alert-red chip is easy to find, and the two you
+    // rarely touch mid-job trail at the end.
     const DialItem DIAL_ITEMS[] = {
-        {"Jobs", LV_SYMBOL_FILE, nullptr, false},
+        {"Home XY", LV_SYMBOL_HOME, nullptr, false},
         {"Jog", LV_SYMBOL_GPS, nullptr, false},
         {"Pen", LV_SYMBOL_EDIT, nullptr, false},
-        {"Lights", nullptr, &iconLightbulb, false}, // real Lucide bulb -- LVGL's symbol font has no lamp glyph
-        {"Home XY", LV_SYMBOL_HOME, nullptr, false},
+        {"Jobs", LV_SYMBOL_FILE, nullptr, false},
+        {"Progress", LV_SYMBOL_LOOP, nullptr, false},
         {"E-Stop", LV_SYMBOL_STOP, nullptr, true},
         {"Alarm", LV_SYMBOL_WARNING, nullptr, false},
+        {"Lights", nullptr, &iconLightbulb, false}, // real Lucide bulb -- LVGL's symbol font has no lamp glyph
         {"Settings", LV_SYMBOL_SETTINGS, nullptr, false},
     };
-    const int DIAL_ITEM_COUNT = 8;
+    const int DIAL_ITEM_COUNT = 9;
 
     const lv_coord_t HUB_SIZE = 82; // holds the selected item's name + machine status
+
+    // Ring geometry. Wider, and with a much bigger near/far ratio than the
+    // RadialRing defaults -- which is what the spread buys: at rest the
+    // selected chip is 66px and the bunched pair at the bottom are 24-29px,
+    // so "which one is selected" is answered by size alone from arm's
+    // length.
+    //
+    // The near size is capped by the hub, not by the panel: 66 at radius 76
+    // leaves the selected chip 2px clear of the hub's rim and 31px inside
+    // the panel edge. Grow it and the top chip starts covering the hub's
+    // name label.
+    const lv_coord_t RING_RADIUS = 76;
+    const lv_coord_t RING_SIZE_NEAR = 66;
+    const lv_coord_t RING_SIZE_FAR = 24;
+    const lv_opa_t RING_OPA_FAR = 100;
+    const float RING_SPREAD = 0.55f;
 
     RadialRing ring;
     lv_obj_t *statusLbl = nullptr;
     lv_obj_t *nameLbl = nullptr;
     lv_obj_t *iconObjs[DIAL_ITEM_COUNT] = {nullptr};
-    bool iconIsLarge[DIAL_ITEM_COUNT] = {false};
+
+    // Which icon size each item is currently drawn at -- see uiRingIconSize.
+    UiRingIconSize iconSize[DIAL_ITEM_COUNT] = {UiRingIconSmall};
 
     void updateNameLabel()
     {
@@ -75,35 +112,38 @@ namespace
         lv_color_t iconColor = alert ? Palette::accentFg()
                                      : lv_color_mix(Palette::accentFg(), Palette::textMuted(), mix);
 
-        // Hysteresis, NOT a plain `nearness > 0.5` test. nearness 0.5 is
-        // exactly 90 degrees -- the 3 and 9 o'clock slots, which are resting
-        // positions for an 8-item ring. A single threshold there sits right
-        // on the boundary, so float noise flipped the icon between its two
-        // sizes every frame and made those two items visibly stutter.
-        bool large = iconIsLarge[i] ? (nearness > 0.42f) : (nearness > 0.58f);
+        UiRingIconSize want = uiRingIconSize(nearness, iconSize[i]);
 
         if (DIAL_ITEMS[i].iconImg)
         {
             // Alpha bitmaps take their colour from img_recolor rather than
-            // text_color. Size is deliberately left alone: scaling via
-            // lv_img_set_zoom sent LVGL down its transform path, which
-            // combined with the parent card's opacity < 255 made the icon
-            // intermittently vanish altogether. The bitmap is generated at
-            // a size that reads correctly drawn 1:1 (tools/gen_lucide_icon.py).
+            // text_color.
             lv_obj_set_style_img_recolor(iconObjs[i], iconColor, 0);
-            iconIsLarge[i] = large; // tracked only so the font path below stays in sync
+
+            // Two pre-rasterised bitmaps rather than lv_img_set_zoom:
+            // scaling sends LVGL down its transform path, which combined
+            // with the parent card's opacity < 255 made the icon
+            // intermittently vanish altogether. Only the top slot gets the
+            // big one -- there's no third bitmap, so medium shares the
+            // small one, which is fine since medium chips are the size the
+            // 20px bulb was drawn for.
+            if (want != iconSize[i])
+            {
+                iconSize[i] = want;
+                lv_img_set_src(iconObjs[i], want == UiRingIconLarge ? &iconLightbulbLarge : &iconLightbulb);
+            }
         }
         else
         {
             lv_obj_set_style_text_color(iconObjs[i], iconColor, 0);
             // A font change forces a label relayout, unlike the plain
-            // colour/size writes above -- skip it unless the near/far bucket
-            // actually flipped, since this runs for every item on every
-            // animation frame.
-            if (large != iconIsLarge[i])
+            // colour write above -- skip it unless the size bucket actually
+            // flipped, since this runs for every item on every animation
+            // frame.
+            if (want != iconSize[i])
             {
-                iconIsLarge[i] = large;
-                lv_obj_set_style_text_font(iconObjs[i], large ? &lv_font_montserrat_24 : &lv_font_montserrat_14, 0);
+                iconSize[i] = want;
+                lv_obj_set_style_text_font(iconObjs[i], uiRingIconFont(want), 0);
             }
         }
     }
@@ -137,7 +177,11 @@ namespace
         {
             lv_obj_t *iconLbl = lv_label_create(card);
             lv_label_set_text(iconLbl, DIAL_ITEMS[index].icon);
-            lv_obj_set_style_text_font(iconLbl, &lv_font_montserrat_24, 0);
+            // Must match iconSize[]'s initial value: onItemStyle only writes
+            // a font when the bucket CHANGES, so a mismatch here would leave
+            // far items drawn at the wrong size until they happened to pass
+            // through another bucket.
+            lv_obj_set_style_text_font(iconLbl, uiRingIconFont(UiRingIconSmall), 0);
             lv_obj_center(iconLbl);
             iconObjs[index] = iconLbl;
         }
@@ -218,7 +262,8 @@ lv_obj_t *uiDialCreate()
     lv_obj_set_style_text_font(statusLbl, &lv_font_montserrat_12, 0);
     lv_obj_align(statusLbl, LV_ALIGN_CENTER, 0, 12);
 
-    ring.create(scr);
+    ring.create(scr, RING_RADIUS, RING_SIZE_NEAR, RING_SIZE_FAR, LV_OPA_COVER, RING_OPA_FAR);
+    ring.setSpread(RING_SPREAD);
     ring.setOnItemStyle(onItemStyle);
     ring.setOnSelect(onSelect);
     for (int i = 0; i < DIAL_ITEM_COUNT; i++) ring.addItem(makeCard(scr, i));

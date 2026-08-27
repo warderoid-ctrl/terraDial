@@ -111,3 +111,21 @@ lv_obj_t *uiMakeButton(lv_obj_t *parent, const char *text, lv_obj_t **outLabel)
     if (outLabel) *outLabel = lbl;
     return btn;
 }
+
+UiRingIconSize uiRingIconSize(float nearness, UiRingIconSize current)
+{
+    if (nearness > (current >= UiRingIconLarge ? 0.80f : 0.90f)) return UiRingIconLarge;
+    if (nearness > (current >= UiRingIconMedium ? 0.42f : 0.52f)) return UiRingIconMedium;
+    return UiRingIconSmall;
+}
+
+const lv_font_t *uiRingIconFont(UiRingIconSize size)
+{
+    switch (size)
+    {
+        case UiRingIconLarge:  return &lv_font_montserrat_32;
+        case UiRingIconMedium: return &lv_font_montserrat_24;
+        case UiRingIconSmall:
+        default:               return &lv_font_montserrat_14;
+    }
+}

@@ -199,7 +199,17 @@ static void networkTask(void *)
         if (WifiManager::isReady())
         {
             fluidNC.update();
-            terraPixel.update(); // blocking HTTP -- belongs here, not on the UI loop
+            // terraPixel's HTTP calls block this task for up to a second
+            // each (longer if its mDNS name doesn't resolve), and nothing
+            // pumps the FluidNC websocket or drains the command queue while
+            // they do. Harmless when the machine is parked; during a homing
+            // cycle or a job it means seconds-long gaps on a channel
+            // FluidNC is actively talking on. So the lights wait until the
+            // machine has stopped moving -- they refresh every 3s anyway,
+            // and a few skipped polls cost nothing.
+            MachineMode m = fluidNC.status().mode;
+            if (m != MachineMode::Homing && m != MachineMode::Run && m != MachineMode::Hold)
+                terraPixel.update(); // blocking HTTP -- belongs here, not on the UI loop
         }
         vTaskDelay(pdMS_TO_TICKS(2));
     }
