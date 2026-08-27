@@ -20,6 +20,11 @@ namespace Config
 {
     void begin()
     {
+        // Deliberately still "terratouch" after the rename to terraDial:
+        // this is the NVS namespace every saved setting lives under, and
+        // changing it would orphan them all -- including the Wi-Fi network
+        // set up on-device, stranding a panel that has no keyboard. An
+        // invisible internal key is a cheap price for that not happening.
         prefs.begin("terratouch", false);
 
         copyToBuf(settings.fluidNcHost, sizeof(settings.fluidNcHost), prefs.getString("fncHost", FLUIDNC_HOST));

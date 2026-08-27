@@ -18,7 +18,7 @@
 #include "net/wifi_manager.h"
 #include <CST816D.h>
 
-// ---- terraTouch: CrowPanel round-screen control panel for terraPen ----
+// ---- terraDial: CrowPanel round-screen control panel for terraPen ----
 // See the project plan for the staged build order; this file wires
 // together display/touch/encoder/LEDs, the FluidNC + terraPixel clients,
 // and the backlight idle timeout.
@@ -224,7 +224,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(300); // give the USB-CDC serial monitor time to attach before the first prints
-    Serial.println("terraTouch boot");
+    Serial.println("terraDial boot");
 
     Config::begin();
 
@@ -245,7 +245,7 @@ void setup()
     WifiManager::begin();
     startNetworkTask();
 
-    Serial.println("terraTouch stage-2 bring-up ready");
+    Serial.println("terraDial stage-2 bring-up ready");
 }
 
 void loop()

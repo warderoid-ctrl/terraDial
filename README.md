@@ -1,4 +1,4 @@
-# terraTouch
+# terraDial
 
 Standalone control panel for the **terraPen** pen plotter, running on an
 Elecrow CrowPanel 1.28" round display — a 240×240 touchscreen with a rotary
@@ -12,9 +12,11 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 ## What it does
 
 - **Jog** X/Y/Z by knob, with selectable step sizes and a per-axis *Set zero*
-- **Run G-code** straight off the plotter's SD card, with live job progress
+- **Run G-code** straight off the plotter's SD card, with live progress,
+  elapsed time and an estimate of the time remaining — including for jobs
+  started from terraForge or the web UI rather than the panel
 - **Pen up/down**, **homing** (with a clear-the-bed confirmation), **E-Stop**
-  and **alarm clear**
+  and **alarm clear**, the last showing FluidNC's own reason for the alarm
 - **Rail lighting** control via terraPixel — brightness, film mode, comet width
 - **On-device Wi-Fi setup**: scan for networks, pick one, type the password
 - **Machine status** shown on the panel's 5-LED ring, readable across the room
@@ -33,8 +35,8 @@ Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
 
 | | | |
 |:--:|:--:|:--:|
-| <img src="docs/screens/home-dial.svg" width="180"><br>**Home** — 8 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg" width="180"><br>**Jog** — axis, position, per‑axis zero |
-| <img src="docs/screens/job-progress.svg" width="180"><br>**Job progress** — appears on its own | <img src="docs/screens/pen.svg" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg" width="180"><br>**Home XY** — clear‑the‑bed gate |
+| <img src="docs/screens/home-dial.svg" width="180"><br>**Home** — 9 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg" width="180"><br>**Jog** — axis, position, per‑axis zero |
+| <img src="docs/screens/job-progress.svg" width="180"><br>**Job progress** — elapsed, and time left | <img src="docs/screens/pen.svg" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg" width="180"><br>**Home XY** — clear‑the‑bed gate |
 | <img src="docs/screens/lights.svg" width="180"><br>**Lights** — terraPixel rail control | <img src="docs/screens/settings-ring.svg" width="180"><br>**Settings** — four categories | <img src="docs/screens/settings-display.svg" width="180"><br>**Display** — brightness, sleep |
 | <img src="docs/screens/radial-keyboard.svg" width="180"><br>**Radial keyboard** — knob‑first text entry | <img src="docs/screens/estop.svg" width="180"><br>**E‑Stop** — feed hold + soft reset | <img src="docs/screens/alarm-clear.svg" width="180"><br>**Alarm clear** — appears on alarm |
 | <img src="docs/screens/about.svg" width="180"><br>**About** — identity, QR links, diagnostics | <img src="docs/screens/idle-brand.svg" width="180"><br>**Idle** — the mark, before sleep | |
@@ -105,10 +107,16 @@ The knob is the primary input; touch works everywhere too.
 | Long press | Back (out of a category first, then out of the screen) |
 | Tap the centre hub | Open whatever the hub is naming |
 
-**Home** is a radial dial of eight destinations. **Jobs** and **Settings** use
-the same ring on an open arc, which keeps the bottom of the face clear of the
-back button. Job Progress and Alarm Clear appear on their own when a job
-starts or an alarm trips.
+**Home** is a radial dial of nine destinations, ordered the way a session
+actually runs rather than by category — Home XY, Jog, Pen, Jobs, Progress,
+E-Stop, Alarm, Lights, Settings. The ring rests on the first of them, so the
+first thing under the selection when the panel wakes is the first thing you
+do. **Jobs** and **Settings** use the same ring on an open arc, which keeps
+the bottom of the face clear of the back button.
+
+Job Progress and Alarm Clear also appear on their own when a job starts or an
+alarm trips. Progress is a dial item as well as an automatic one: that's how
+you get back to a running job after wandering off to change the lights.
 
 E-Stop stays red at every position on the dial rather than only when
 selected, so it's findable at a glance.
@@ -126,7 +134,7 @@ src/
   led/           WS2812 status ring
   net/           FluidNC WebSocket client, terraPixel HTTP client, Wi-Fi
 tools/           icon, logo and screen-illustration generation
-design_handoff_radial_dial_ui/   UI mockups the layout follows
+design_handoff_radial_dial_ui/   the original design brief (historical)
 ```
 
 Some notes worth knowing before changing things:
@@ -145,6 +153,18 @@ Some notes worth knowing before changing things:
   blank or vanish. Change real sizes instead.
 - Colours come from [`include/palette.h`](include/palette.h), ported from
   terraForge's dark theme. Use the tokens, not literal hex.
+- **The dial's order lives in three places** and they must agree:
+  `DIAL_ITEMS` in `ui_dial.cpp`, the positional `switch` in `ui_nav.cpp`'s
+  `onDialOpen()`, and the `screen_home()` item list in `tools/gen_screens.py`.
+  Reordering one alone doesn't fail to build — it just quietly sends every
+  item to the wrong screen.
+- **Pace what you send FluidNC.** Commands are queued and the whole queue is
+  drained in one pass, so two lines enqueued together hit the wire
+  microseconds apart. `$X` immediately followed by `$H` used to alarm the
+  machine on any home after the first; `home()` now unlocks only when there's
+  actually an alarm and holds the `$H` until that has landed. For the same
+  reason jogging is refused mid-homing — the jog-cancel realtime byte would
+  stop the cycle, and FluidNC alarms on a homing cycle that didn't finish.
 - Project links live in [`include/branding.h`](include/branding.h). The
   Discord URL is deliberately empty until there's a real invite — an entry
   with no URL is skipped rather than rendered as a QR that goes nowhere.

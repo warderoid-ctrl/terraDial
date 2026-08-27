@@ -1,5 +1,5 @@
 /**
- * Minimal lv_conf.h for terraTouch (LVGL 8.3.x on ESP32-S3 + PSRAM).
+ * Minimal lv_conf.h for terraDial (LVGL 8.3.x on ESP32-S3 + PSRAM).
  * Trimmed from LVGL's stock template -- only the settings this project
  * actually depends on are called out explicitly; everything else keeps
  * LVGL's built-in defaults.

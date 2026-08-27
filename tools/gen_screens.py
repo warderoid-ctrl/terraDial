@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate SVG illustrations of each terraTouch screen for the README.
+"""Generate SVG illustrations of each terraDial screen for the README.
 
 These are RENDERS, not screenshots: there's no way to capture the real
 panel's framebuffer from a build machine. Everything here is transcribed

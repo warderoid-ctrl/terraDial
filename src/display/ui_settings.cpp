@@ -629,7 +629,7 @@ namespace
         addLinkQr(card, "Discord", Branding::discordUrl());
 
         lv_obj_t *hostLbl = lv_label_create(card);
-        lv_label_set_text(hostLbl, "terratouch.local");
+        lv_label_set_text(hostLbl, Branding::mdnsAddress());
         lv_obj_set_style_text_font(hostLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(hostLbl, Palette::text(), 0);
 

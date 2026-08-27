@@ -6,7 +6,7 @@
 // Always reachable as a dial destination, one button, no confirm dialog --
 // a confirm step would defeat the point of an emergency stop. The mockup
 // also wants this reachable via a double-press on a separate physical
-// touch button "from anywhere"; that hardware doesn't exist on terraTouch
+// touch button "from anywhere"; that hardware doesn't exist on terraDial
 // (only the touchscreen and the encoder's own click/double-click/long-
 // press -- see pins.h/encoder.h), so this is reachable via the dial only.
 namespace

@@ -14,8 +14,16 @@ namespace Branding
     inline const char *productName() { return "terraPen"; }
     inline const char *siteLabel() { return "terrapen.xyz"; }
 
+    // The panel's own mDNS name, announced by wifi_manager and printed on
+    // the About screen. Here rather than as a literal in both, because the
+    // two drifting apart means About confidently tells you an address that
+    // doesn't answer. Distinct from FluidNC's own "terrapen" and
+    // terraPixel's "terrapen-leds".
+    inline const char *mdnsHostname() { return "terradial"; }
+    inline const char *mdnsAddress() { return "terradial.local"; }
+
     inline const char *siteUrl() { return "https://terrapen.xyz"; }
-    inline const char *githubUrl() { return "https://github.com/warderoid-ctrl/terraTouch"; }
+    inline const char *githubUrl() { return "https://github.com/warderoid-ctrl/terraDial"; }
 
     // TODO: paste the real invite. Left empty deliberately -- an invented
     // invite code would render a QR that silently goes nowhere, which is

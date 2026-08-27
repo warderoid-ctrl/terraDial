@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <ESPmDNS.h>
 #include "../config/settings.h"
+#include "branding.h"
 #include "fluidnc_client.h"
 #include "terrapixel_client.h"
 
@@ -32,9 +33,8 @@ namespace WifiManager
 
         Serial.print("[wifi] connected, IP ");
         Serial.println(WiFi.localIP());
-        // Shared by both clients below -- unique hostname, distinct from
-        // FluidNC's own "terrapen" and terraPixel's "terrapen-leds".
-        MDNS.begin("terratouch");
+        // Shared by both clients below -- see Branding::mdnsHostname().
+        MDNS.begin(Branding::mdnsHostname());
         fluidNC.begin();
         terraPixel.begin();
         ready_ = true;
