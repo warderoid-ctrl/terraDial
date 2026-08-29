@@ -171,4 +171,5 @@ Some notes worth knowing before changing things:
 
 ## Licence
 
-No licence specified yet.
+MIT — see [LICENSE](LICENSE). Same licence as its sibling
+[terraForge](https://github.com/theworkisthework/terraForge).
