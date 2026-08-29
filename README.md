@@ -5,9 +5,10 @@ Elecrow CrowPanel 1.28" round display — a 240×240 touchscreen with a rotary
 knob. It talks to [FluidNC](http://wiki.fluidnc.com/) over a WebSocket, so
 the plotter can be driven from the bench without a laptop or phone.
 
-Sibling projects: [terraForge](https://github.com/theworkisthework/terraForge)
-(desktop app — and the source of this panel's colour palette) and terraPixel
-(the rail lighting controller this panel can also drive).
+Parent project: [terraForge](https://github.com/theworkisthework/terraForge)
+(the desktop app this panel descends from — and the source of its colour
+palette). Sibling: terraPixel (the rail lighting controller this panel can
+also drive).
 
 ## What it does
 
@@ -171,5 +172,5 @@ Some notes worth knowing before changing things:
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE). Same licence as its sibling
+MIT — see [LICENSE](LICENSE). Same licence as its parent project
 [terraForge](https://github.com/theworkisthework/terraForge).
