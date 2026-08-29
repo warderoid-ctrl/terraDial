@@ -26,6 +26,8 @@ also drive).
 - **Rail lighting** control via terraPixel — brightness, film mode, comet width
 - **On-device Wi-Fi setup**: scan for networks, pick one, type the password
 - **Machine status** shown on the panel's 5-LED ring, readable across the room
+  — a jog chases a pixel the way you turned the knob, a plot breathes the
+  whole ring slowly, and both dim with the screen when the panel sleeps
 - **Sleep mode** so the panel isn't glowing at you through a multi-hour plot,
   with the terraPen mark shown while idle beforehand
 - **About screen** carrying the project identity and QR links to the site,
@@ -41,7 +43,7 @@ also drive).
 
 | | | |
 |:--:|:--:|:--:|
-| <img src="docs/screens/home-dial.svg" width="180"><br>**Home** — 9 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg" width="180"><br>**Jog** — axis, position, per‑axis zero |
+| <img src="docs/screens/home-dial.svg" width="180"><br>**Home** — 8 destinations, E‑Stop always red | <img src="docs/screens/jobs.svg" width="180"><br>**Jobs** — SD files on an open arc | <img src="docs/screens/jog.svg" width="180"><br>**Jog** — axis, position, per‑axis zero |
 | <img src="docs/screens/job-progress.svg" width="180"><br>**Job progress** — elapsed, and time left | <img src="docs/screens/pen.svg" width="180"><br>**Pen** — up / down | <img src="docs/screens/home-confirm.svg" width="180"><br>**Home XY** — clear‑the‑bed gate |
 | <img src="docs/screens/lights.svg" width="180"><br>**Lights** — terraPixel rail control | <img src="docs/screens/settings-ring.svg" width="180"><br>**Settings** — four categories | <img src="docs/screens/settings-display.svg" width="180"><br>**Display** — brightness, sleep |
 | <img src="docs/screens/radial-keyboard.svg" width="180"><br>**Radial keyboard** — knob‑first text entry | <img src="docs/screens/estop.svg" width="180"><br>**E‑Stop** — feed hold + soft reset | <img src="docs/screens/alarm-clear.svg" width="180"><br>**Alarm clear** — appears on alarm |
@@ -111,21 +113,39 @@ The knob is the primary input; touch works everywhere too.
 | Rotate | Move through a ring / jog the selected axis / scroll a settings panel |
 | Click | Open the highlighted item, or confirm |
 | Long press | Back (out of a category first, then out of the screen) |
-| Tap the centre hub | Open whatever the hub is naming |
+| Tap the centre hub | The running job, the active alarm, or E-Stop if the machine is moving — otherwise whatever the hub is naming |
+| Double click | Run/delete prompt (Jobs screen only) |
 
-**Home** is a radial dial of nine destinations, ordered the way a session
-actually runs rather than by category — Home XY, Jog, Pen, Jobs, Progress,
-E-Stop, Alarm, Lights, Settings. The ring rests on the first of them, so the
-first thing under the selection when the panel wakes is the first thing you
-do. **Jobs** and **Settings** use the same ring on an open arc, which keeps
-the bottom of the face clear of the back button.
+**Home** is a radial dial of eight destinations, ordered the way a session
+actually runs rather than by category — Home XY, Jog, Pen, Jobs, Photo,
+E-Stop, Lights, Settings. The ring rests on the first of them, so the first
+thing under the selection when the panel wakes is the first thing you do.
+**Jobs** and **Settings** use the same ring on an open arc, which keeps the
+bottom of the face clear of the back button.
 
-Job Progress and Alarm Clear also appear on their own when a job starts or an
-alarm trips. Progress is a dial item as well as an automatic one: that's how
-you get back to a running job after wandering off to change the lights.
+Job Progress and Alarm Clear appear on their own when a job starts or an
+alarm trips, and have no dial item of their own. The way back to them is the
+hub: it already reports the machine state, so while that state has a screen,
+tapping it opens that screen rather than the selected ring item.
 
-E-Stop stays red at every position on the dial rather than only when
-selected, so it's findable at a glance.
+That's what buys the spacing. The ring is a full circle, so every item costs
+the others angle — eight sit 45° apart where ten sat 36°. E-Stop is a chip
+you have to land on while something is going wrong, so it gets the room; it
+also stays red at every position rather than only when selected.
+
+Getting to E-Stop matters most where the machine is already moving under
+your hand, which is not during a job — Job Progress carries its own stop
+button. It's **jogging** and **homing**. So the Jog and Park screens carry a
+small red stop pip beside their back button, and on the dial, tapping the
+hub while the machine is homing or travelling opens E-Stop. Both open the
+E-Stop screen rather than stopping outright: a stray tap near the bottom
+bezel shouldn't soft-reset a machine mid-plot.
+
+E-Stop fires on **press**, not on release, and says what it did. An
+emergency jab that lands and slides off is exactly the gesture a normal
+button is designed to discard, and the panel can't tell you the machine
+stopped — only whether there was a connection to send the stop down. So it
+answers "STOPPED" or "NOT SENT", the second meaning go and stop it by hand.
 
 ## Layout
 

@@ -115,6 +115,11 @@ def icon(parts, cx, cy, kind, size, col):
         circle(parts, cx, cy, s * .85, "none", col, lw)
         parts.append('<path d="M%g %g v-%g M%g %g h%g" %s/>'
                      % (cx, cy, s * .5, cx, cy, s * .42, st))
+    elif kind == "image":  # stands in for LV_SYMBOL_IMAGE on the Photo item
+        rect(parts, cx - s * .85, cy - s * .7, s * 1.7, s * 1.4, s * .2, "none", stroke=col)
+        circle(parts, cx - s * .3, cy - s * .22, s * .18, col)
+        parts.append('<path d="M%g %g l%g %g l%g %g" %s/>'
+                     % (cx - s * .7, cy + s * .55, s * .6, -s * .6, s * .95, s * .95, st))
     elif kind == "stop":
         rect(parts, cx - s * .7, cy - s * .7, s * 1.4, s * 1.4, s * .2, col)
     elif kind == "warn":
@@ -157,6 +162,13 @@ def back_button(parts):
     """The shared bottom-centre back chip (ui_screen_shell.cpp)."""
     circle(parts, 120, 214, 18, BG_SECONDARY)
     icon(parts, 120, 214, "back", 14, TEXT_MUTED)
+
+
+def estop_pip(parts):
+    """The stop pip beside it, on screens that can move the machine
+    (ui_screen_shell.cpp's addEstopButton)."""
+    circle(parts, 82, 208, 13, ALERT)
+    icon(parts, 82, 208, "stop", 10, ACCENT_FG)
 
 
 # ------------------------------------------------------- ring renderers
@@ -224,8 +236,10 @@ def hub(parts, size, lines):
 def screen_home():
     p = []
     head(p)
+    # Must match DIAL_ITEMS in src/display/ui_dial.cpp:
+    # Home XY, Jog, Pen, Jobs, Photo, E-Stop, Lights, Settings.
     items = [("home", 0), ("target", 0), ("pen", 0), ("file", 0),
-             ("gauge", 0), ("stop", 1), ("warn", 0), ("bulb", 0), ("gear", 0)]
+             ("image", 0), ("stop", 1), ("bulb", 0), ("gear", 0)]
     full_ring(p, items, 0)
     hub(p, 82, [("Home XY", -8, 14, TEXT, "600"), ("IDLE", 12, 12, TEXT_MUTED, "400")])
     tail(p)
@@ -255,11 +269,13 @@ def screen_jog():
     text(p, 120, 90, "12.40", 32, TEXT, "600")
     rect(p, 74, 118, 92, 24, 12, BG_SECONDARY)
     text(p, 120, 130, "Set Y zero", 12, TEXT_MUTED)
-    for i, (lbl, sel) in enumerate((("0.1", 0), ("1", 1), ("10", 0))):
-        x = 74 + i * 46
-        rect(p, x, 160, 40, 28, 14, ACCENT if sel else BG_SECONDARY)
-        text(p, x + 20, 174, lbl, 12, ACCENT_FG if sel else TEXT_MUTED, "600")
+    # Four chips at 36 wide + 6 gaps = 162px, centred on 120 (see ui_jog.cpp).
+    for i, (lbl, sel) in enumerate((("0.1", 0), ("1", 1), ("10", 0), ("100", 0))):
+        x = 39 + i * 42
+        rect(p, x, 160, 36, 28, 14, ACCENT if sel else BG_SECONDARY)
+        text(p, x + 18, 174, lbl, 12, ACCENT_FG if sel else TEXT_MUTED, "600")
     back_button(p)
+    estop_pip(p)
     tail(p)
     return "jog", p
 

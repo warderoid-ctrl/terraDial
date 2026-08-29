@@ -66,13 +66,13 @@ namespace
     }
 
     // Maps a Home ring item index to what opening it does. Order must
-    // match ui_dial.cpp's DIAL_ITEMS: Home, Jog, Pen, Jobs, Progress,
-    // Photo, E-Stop, Alarm, Lights, Settings.
+    // match ui_dial.cpp's DIAL_ITEMS: Home, Jog, Pen, Jobs, Photo, E-Stop,
+    // Lights, Settings.
     //
-    // These are positional, so inserting an item in DIAL_ITEMS renumbers
-    // every case below it -- Photo going in at 5 pushed E-Stop through
-    // Settings along by one. Get that wrong and the dial still works, it
-    // just opens the wrong screen: tapping E-Stop would have opened Photo.
+    // These are positional, so adding or removing an item in DIAL_ITEMS
+    // renumbers every case below it. Get that wrong and the dial still
+    // works, it just opens the wrong screen -- tapping E-Stop would open
+    // something else, which is the single worst version of this mistake.
     void onDialOpen(int cardIndex)
     {
         switch (cardIndex)
@@ -81,13 +81,46 @@ namespace
             case 1: goTo(JOG_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 2: goTo(PEN_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 3: goTo(FILES_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 4: goTo(JOB_PROGRESS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 5: goTo(PARK_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 6: goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 7: goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 8: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 9: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 4: goTo(PARK_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 5: goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 6: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 7: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
         }
+    }
+
+    // Job Progress and Alarm Clear lost their ring slots so the remaining
+    // eight items would sit 45 degrees apart instead of 36 -- E-Stop being
+    // the one you have to land on while something is going wrong. This is
+    // the route back they traded them for: the dial's hub already reports
+    // the machine state, so tapping it while that state has a screen opens
+    // it. Returning false means "nothing going on", and the hub falls back
+    // to opening the selected ring item.
+    bool onDialStatusTap()
+    {
+        const FluidNCStatus &st = fluidNC.status();
+        if (st.jobActive)
+        {
+            goTo(JOB_PROGRESS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            return true;
+        }
+        if (st.mode == MachineMode::Alarm)
+        {
+            goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            return true;
+        }
+        // Moving, but not a job: a homing cycle, or the park macro's travel.
+        // Neither has a screen of its own, and the thing you want while one
+        // of them goes wrong is the stop -- a homing cycle that misses its
+        // switch drives into the end of the axis and keeps pushing. You are
+        // already on the dial when both of these run (the Home screen hands
+        // you back here after confirming), so the hub is the nearest target
+        // on the panel and the biggest.
+        if (st.mode == MachineMode::Homing || st.mode == MachineMode::Run)
+        {
+            goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            return true;
+        }
+        return false;
     }
 
     // Auto-navigation on machine-state transitions, per the mockup's
@@ -156,7 +189,7 @@ namespace UiNav
         screens[ALARM_CLEAR_SCREEN_INDEX] = uiAlarmClearCreate();
         screens[PARK_SCREEN_INDEX] = uiParkCreate();
 
-        uiDialSetHandlers(onDialOpen);
+        uiDialSetHandlers(onDialOpen, onDialStatusTap);
 
         lv_scr_load(screens[DIAL_SCREEN_INDEX]);
     }
@@ -173,6 +206,7 @@ namespace UiNav
 
         // Same idea: only the alarm screen cares, and only while it's up.
         if (currentIndex == ALARM_CLEAR_SCREEN_INDEX) uiAlarmClearUpdate();
+        if (currentIndex == ESTOP_SCREEN_INDEX) uiEstopUpdate();
 
         int32_t delta = jogWheel.takeRotationDelta();
         ButtonEvent ev = jogWheel.takeButtonEvent();
@@ -324,5 +358,10 @@ namespace UiNav
     void goHome()
     {
         goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+    }
+
+    void goEstop()
+    {
+        goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
     }
 }

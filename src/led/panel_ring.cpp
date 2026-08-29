@@ -70,6 +70,28 @@ void PanelRing::render()
     {
         case MachineMode::Run:
         {
+            if (plotting_)
+            {
+                // A plot: the whole ring lit, breathing slowly, for however
+                // long the job takes. The chase below is the right read for
+                // a jog and the wrong one for an hour-long plot sitting in
+                // your peripheral vision -- motion is what the eye keeps
+                // going back to, and one pixel racing round a dark ring is
+                // nearly all motion.
+                //
+                // Scaled INSIDE the user's brightness rather than driven at
+                // absolute levels like the Hold/Alarm/Boot pulses. Two
+                // reasons: the Display brightness setting should still mean
+                // something during the longest thing the machine does, and
+                // ScreenSleep dims this same value when the panel sleeps --
+                // so the ring fades down with the screen and stays lit
+                // through the night instead of blazing on at a fixed level.
+                uint8_t lo = (uint8_t)(((uint32_t)userBright * 45) / 100);
+                strip.setBrightness(beat(16, lo, userBright)); // ~3.75s per breath
+                fillAll(255, 250, 240);
+                break;
+            }
+
             // No position feed on this ring (unlike terraPixel's rail comet) --
             // a single bright pixel chases around the 5 LEDs to read as "active".
             strip.setBrightness(userBright);

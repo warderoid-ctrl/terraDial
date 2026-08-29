@@ -29,3 +29,15 @@ ScreenShell createScreenShell(const char *title, const char *icon);
 // instead of using the shell (Jog/Files/Settings/Job Progress/E-Stop/Alarm
 // Clear) call this directly on their own screen object.
 void addBackButton(lv_obj_t *screen);
+
+// Small red stop pip, sitting to the left of the back button. For screens
+// that can put the machine in motion under your hand: from those, reaching
+// the stop otherwise meant back out, rotate the dial to E-Stop, open it --
+// three deliberate actions at the moment you have least patience for them.
+//
+// Opens the E-Stop screen rather than stopping outright. A single stray tap
+// near the bottom bezel should not soft-reset a machine mid-plot, and the
+// E-Stop screen's own button is 156px of red that fires on touch-down, so
+// the cost of the extra tap is small and it is the tap that makes the first
+// one safe to place here.
+void addEstopButton(lv_obj_t *screen);

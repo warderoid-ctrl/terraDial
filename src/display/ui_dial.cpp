@@ -4,7 +4,7 @@
 #include "icon_lightbulb.h"
 #include "ui_widgets.h"
 
-// Home: a radial dial -- 10 destinations arranged on a ring around a centre
+// Home: a radial dial -- 8 destinations arranged on a ring around a centre
 // hub, per the "TerraPen Dial UI" mockup. The item nearest the top slot is
 // largest/brightest; others shrink and fade with angular distance. The ring
 // mechanics live in RadialRing (shared with the Jobs screen); this file
@@ -23,11 +23,21 @@
 // selection keeps its room), but this is the cost of a new dial item, and it
 // is why one earns its place rather than being added because it fits.
 //
-// Job Progress is both auto-navigated to when a job starts AND a dial item
-// in its own right, because those solve different problems: the auto-nav
-// shows you the job without asking, the dial item gets you back to it after
-// you've wandered off to change the lights mid-run. Without the item, the
+// Job Progress and Alarm Clear are NOT ring items. Both are auto-navigated
+// to when the machine enters their state, and both used to carry a dial
+// item as well, for the other half of the problem: getting back after
+// you've wandered off to change the lights mid-run, since otherwise the
 // only route back was to wait for the job to end.
+//
+// That route now lives on the hub instead. The hub already reports the
+// machine state in the middle of the screen -- "RUN", "ALARM" -- so making
+// that word the way back costs no ring slot and puts the shortcut on the
+// one control that is already telling you the shortcut is relevant. Which
+// screen it opens is ui_nav's call, not this file's.
+//
+// The slots that bought back are why E-Stop is findable: eight items sit 45
+// degrees apart where ten sat 36, and E-Stop is a chip you have to land on
+// while something is going wrong.
 namespace
 {
     struct DialItem
@@ -58,16 +68,14 @@ namespace
         {"Jog", LV_SYMBOL_GPS, nullptr, false},
         {"Pen", LV_SYMBOL_EDIT, nullptr, false},
         {"Jobs", LV_SYMBOL_FILE, nullptr, false},
-        {"Progress", LV_SYMBOL_LOOP, nullptr, false},
-        // Directly after Progress because that is where it falls in a
-        // session: you watch the job finish, then you park to photograph it.
+        // Directly after Jobs because that is where it falls in a session:
+        // you run the plot, watch it finish, then park to photograph it.
         {"Photo", LV_SYMBOL_IMAGE, nullptr, false},
         {"E-Stop", LV_SYMBOL_STOP, nullptr, true},
-        {"Alarm", LV_SYMBOL_WARNING, nullptr, false},
         {"Lights", nullptr, &iconLightbulb, false}, // real Lucide bulb -- LVGL's symbol font has no lamp glyph
         {"Settings", LV_SYMBOL_SETTINGS, nullptr, false},
     };
-    const int DIAL_ITEM_COUNT = 10;
+    const int DIAL_ITEM_COUNT = 8;
 
     const lv_coord_t HUB_SIZE = 82; // holds the selected item's name + machine status
 
@@ -197,9 +205,20 @@ namespace
         return card;
     }
 
+    // Supplied by ui_nav. Returns true if the machine's current state had a
+    // screen worth jumping to, in which case the tap meant that rather than
+    // "open the selected item".
+    bool (*onStatusTap)() = nullptr;
+
     void hubTapCb(lv_event_t *e)
     {
         (void)e;
+        // State first. When the hub is reading RUN or ALARM, that is what
+        // the middle of the screen is about, and it is what a tap on it
+        // means -- the selected ring item is still one tap away on its own
+        // chip. When there's nothing going on, the hub goes back to being a
+        // big central shortcut to whatever is selected.
+        if (onStatusTap && onStatusTap()) return;
         ring.openSelected();
     }
 
@@ -284,9 +303,10 @@ lv_obj_t *uiDialCreate()
     return scr;
 }
 
-void uiDialSetHandlers(void (*onOpen)(int index))
+void uiDialSetHandlers(void (*onOpen)(int index), bool (*onStatus)())
 {
     ring.setOnOpen(onOpen);
+    onStatusTap = onStatus;
 }
 
 void uiDialSelectNext() { ring.selectNext(); }
@@ -295,6 +315,16 @@ void uiDialOpenSelected() { ring.openSelected(); }
 
 void uiDialUpdate(const FluidNCStatus &st)
 {
-    lv_label_set_text(statusLbl, textForMode(st.mode));
+    // A live job says PROGRESS rather than RUN, because on a live job this
+    // label is a button: it is the hub tap that opens the Job Progress
+    // screen (see the note at the top of this file), and a control should
+    // name where it goes rather than restate what you can already see from
+    // the machine itself. "RUN" was also the one state where the hub said
+    // the least -- you can hear the plotter running.
+    //
+    // The colour still tracks the real mode, so a paused job reads as an
+    // amber PROGRESS: where the tap goes hasn't changed, but the machine
+    // isn't moving and the ring and the hub should both say so.
+    lv_label_set_text(statusLbl, st.jobActive ? "PROGRESS" : textForMode(st.mode));
     lv_obj_set_style_text_color(statusLbl, colorForMode(st.mode), 0);
 }

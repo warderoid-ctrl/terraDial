@@ -5,6 +5,7 @@
 namespace
 {
     void backBtnCb(lv_event_t *e) { (void)e; UiNav::goHome(); }
+    void estopPipCb(lv_event_t *e) { (void)e; UiNav::goEstop(); }
 }
 
 void addBackButton(lv_obj_t *screen)
@@ -24,6 +25,31 @@ void addBackButton(lv_obj_t *screen)
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, LV_SYMBOL_LEFT);
     lv_obj_set_style_text_color(lbl, Palette::textMuted(), 0);
+    lv_obj_center(lbl);
+}
+
+void addEstopButton(lv_obj_t *screen)
+{
+    // 26px and offset -38/-14, which is smaller and higher than it looks
+    // like it should be. The panel is round: at the back button's own
+    // baseline the usable half-width is about 43px, so a full-size chip
+    // beside it would have its lower outside corner off the glass. Raising
+    // it 6px and shrinking it 10 puts the whole pip inside the circle with
+    // room to spare, and ext_click_area gives back the touch target that
+    // costs.
+    lv_obj_t *btn = lv_btn_create(screen);
+    lv_obj_set_size(btn, 26, 26);
+    lv_obj_set_style_radius(btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(btn, Palette::alert(), 0);
+    lv_obj_set_style_shadow_width(btn, 0, 0);
+    lv_obj_set_ext_click_area(btn, 8);
+    lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, -38, -14);
+    lv_obj_add_event_cb(btn, estopPipCb, LV_EVENT_CLICKED, NULL);
+
+    lv_obj_t *lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, LV_SYMBOL_STOP);
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(lbl, Palette::accentFg(), 0);
     lv_obj_center(lbl);
 }
 

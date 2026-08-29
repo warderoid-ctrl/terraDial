@@ -143,6 +143,9 @@ lv_obj_t *uiParkCreate()
     lv_obj_center(btnLbl);
 
     addBackButton(scr);
+    // This screen homes the machine and then rapids it the length of Y. If
+    // any screen that isn't Jog needs the stop within reach, it's this one.
+    addEstopButton(scr);
 
     return scr;
 }

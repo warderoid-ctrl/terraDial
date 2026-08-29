@@ -185,6 +185,9 @@ lv_obj_t *uiJogCreate()
     // over-limit ones on Z -- the sentence just restated what the row was
     // doing.
     addBackButton(scr);
+    // The screen whose whole job is moving the machine while your hand is on
+    // the knob and your eyes are on the pen, not the panel.
+    addEstopButton(scr);
 
     restyleChips();
     return scr;

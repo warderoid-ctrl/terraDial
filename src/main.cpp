@@ -266,6 +266,9 @@ void loop()
     uiParkUpdate();
 
     panelRing.setMode(fluidNC.status().mode);
+    // FluidNC calls a jog and a plot the same thing (Run); this is the half
+    // of the distinction the ring can't work out for itself.
+    panelRing.setPlotting(fluidNC.status().jobActive);
     panelRing.update();
 
     static uint32_t lastStatusUiUpdate = 0;

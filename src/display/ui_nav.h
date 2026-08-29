@@ -13,4 +13,10 @@ namespace UiNav
     // on-screen back-arrow button (see ui_screen_shell.h's addBackButton())
     // can trigger it directly.
     void goHome();
+
+    // Opens the E-Stop screen. Exposed for the small stop pip that motion
+    // screens put next to their back button (ui_screen_shell.h's
+    // addEstopButton()), so getting to the stop from a screen that can move
+    // the machine is one tap rather than back-out-rotate-open.
+    void goEstop();
 }

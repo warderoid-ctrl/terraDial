@@ -12,12 +12,16 @@
 <text x="120" y="90" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="32" font-weight="600" fill="#e0e0e0" text-anchor="middle" dominant-baseline="central">12.40</text>
 <rect x="74" y="118" width="92" height="24" rx="12" fill="#0f3460"/>
 <text x="120" y="130" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">Set Y zero</text>
-<rect x="74" y="160" width="40" height="28" rx="14" fill="#0f3460"/>
-<text x="94" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">0.1</text>
-<rect x="120" y="160" width="40" height="28" rx="14" fill="#e94560"/>
-<text x="140" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">1</text>
-<rect x="166" y="160" width="40" height="28" rx="14" fill="#0f3460"/>
-<text x="186" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">10</text>
+<rect x="39" y="160" width="36" height="28" rx="14" fill="#0f3460"/>
+<text x="57" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">0.1</text>
+<rect x="81" y="160" width="36" height="28" rx="14" fill="#e94560"/>
+<text x="99" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#ffffff" text-anchor="middle" dominant-baseline="central">1</text>
+<rect x="123" y="160" width="36" height="28" rx="14" fill="#0f3460"/>
+<text x="141" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">10</text>
+<rect x="165" y="160" width="36" height="28" rx="14" fill="#0f3460"/>
+<text x="183" y="174" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">100</text>
 <circle cx="120" cy="214" r="18" fill="#0f3460"/>
 <path d="M122.8 209.8 l-4.9 4.2 l4.9 4.2" stroke="#9ca3af" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="82" cy="208" r="13" fill="#d12b3f"/>
+<rect x="78.5" y="204.5" width="7" height="7" rx="1" fill="#ffffff"/>
 </g></svg>
