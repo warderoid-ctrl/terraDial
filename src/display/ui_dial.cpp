@@ -4,7 +4,7 @@
 #include "icon_lightbulb.h"
 #include "ui_widgets.h"
 
-// Home: a radial dial -- 8 destinations arranged on a ring around a centre
+// Home: a radial dial -- 10 destinations arranged on a ring around a centre
 // hub, per the "TerraPen Dial UI" mockup. The item nearest the top slot is
 // largest/brightest; others shrink and fade with angular distance. The ring
 // mechanics live in RadialRing (shared with the Jobs screen); this file
@@ -12,10 +12,16 @@
 //
 // The spacing is deliberately uneven (RadialRing::setSpread): the top of the
 // ring is stretched open and the bottom squeezed shut. Testers liked the
-// dial but couldn't read it -- eight equal chips 45 degrees apart on a 1.28"
-// panel all look much the same. Spending the angular budget where you're
-// looking lets the selection and its two neighbours grow enough to tell
-// apart, at the cost of the items you're rotating away from.
+// dial but couldn't read it -- equal chips a uniform 360/count degrees apart
+// on a 1.28" panel all look much the same. Spending the angular budget where
+// you're looking lets the selection and its two neighbours grow enough to
+// tell apart, at the cost of the items you're rotating away from.
+//
+// That budget is what shrinks as items are added: the ring is a full circle,
+// so the even spacing behind the spread is 360/count -- 40 degrees at nine
+// items, 36 at ten. The spread absorbs it (the tail bunches tighter while the
+// selection keeps its room), but this is the cost of a new dial item, and it
+// is why one earns its place rather than being added because it fits.
 //
 // Job Progress is both auto-navigated to when a job starts AND a dial item
 // in its own right, because those solve different problems: the auto-nav
@@ -53,12 +59,15 @@ namespace
         {"Pen", LV_SYMBOL_EDIT, nullptr, false},
         {"Jobs", LV_SYMBOL_FILE, nullptr, false},
         {"Progress", LV_SYMBOL_LOOP, nullptr, false},
+        // Directly after Progress because that is where it falls in a
+        // session: you watch the job finish, then you park to photograph it.
+        {"Photo", LV_SYMBOL_IMAGE, nullptr, false},
         {"E-Stop", LV_SYMBOL_STOP, nullptr, true},
         {"Alarm", LV_SYMBOL_WARNING, nullptr, false},
         {"Lights", nullptr, &iconLightbulb, false}, // real Lucide bulb -- LVGL's symbol font has no lamp glyph
         {"Settings", LV_SYMBOL_SETTINGS, nullptr, false},
     };
-    const int DIAL_ITEM_COUNT = 9;
+    const int DIAL_ITEM_COUNT = 10;
 
     const lv_coord_t HUB_SIZE = 82; // holds the selected item's name + machine status
 

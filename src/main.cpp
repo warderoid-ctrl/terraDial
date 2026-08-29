@@ -10,6 +10,7 @@
 #include "display/ui_lights.h"
 #include "display/ui_settings.h"
 #include "display/ui_job_progress.h"
+#include "display/ui_park.h"
 #include "display/screen_sleep.h"
 #include "input/encoder.h"
 #include "led/panel_ring.h"
@@ -259,6 +260,10 @@ void loop()
 
     uiFilesUpdate();
     uiSettingsUpdate();
+    // Unconditional, not gated on the Park screen being visible: the macro
+    // takes the length of a homing cycle, and the whole point is that you
+    // can walk away to another screen while it runs.
+    uiParkUpdate();
 
     panelRing.setMode(fluidNC.status().mode);
     panelRing.update();

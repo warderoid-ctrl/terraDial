@@ -8,7 +8,7 @@
 // X/Y/Z + step chips are tap-to-select directly (replacing the old knob-
 // click-cycles-step behavior). Knob rotation jogs continuously (the ring's
 // own +/- motion), so there's no separate on-screen +/- control -- knob
-// click cycles axis instead. Z axis omits the 10mm step chip.
+// click cycles axis instead. Z axis omits any step over JOG_MAX_Z_MM.
 namespace
 {
     const char *AXIS_NAMES[] = {"X", "Y", "Z"};
@@ -36,8 +36,7 @@ namespace
         }
         for (int i = 0; i < JOG_STEP_COUNT; i++)
         {
-            bool isTenMmChip = (i == JOG_STEP_COUNT - 1);
-            if (axisIndex == 2 && isTenMmChip)
+            if (axisIndex == 2 && JOG_STEPS[i].mm > JOG_MAX_Z_MM)
             {
                 lv_obj_add_flag(stepChips[i], LV_OBJ_FLAG_HIDDEN);
                 continue;
@@ -57,8 +56,12 @@ namespace
     {
         if (idx == axisIndex) return;
         axisIndex = idx;
-        // Z has no 10mm step -- clamp back if it was selected elsewhere.
-        if (axisIndex == 2 && stepIndex >= JOG_STEP_COUNT - 1) stepIndex = JOG_STEP_COUNT - 2;
+        // Walk back down the table until the selected step is legal for Z --
+        // the chip we were on may have just been hidden. Walking rather than
+        // assuming a fixed index means it still lands somewhere sensible
+        // whatever JOG_STEPS holds.
+        if (axisIndex == 2)
+            while (stepIndex > 0 && JOG_STEPS[stepIndex].mm > JOG_MAX_Z_MM) stepIndex--;
         restyleChips();
     }
 
@@ -156,7 +159,12 @@ lv_obj_t *uiJogCreate()
     for (int i = 0; i < JOG_STEP_COUNT; i++)
     {
         lv_obj_t *chip = lv_obj_create(stepRow);
-        lv_obj_set_size(chip, 40, 28);
+        // 36 wide, not 40: four chips plus their 6px gaps span 162px, and the
+        // row's lower corners sit ~99px from the panel's centre line, so the
+        // usable width down here is ~197px. 40px chips (178px) would have
+        // fitted, but with the corners inside 10px of the glass -- 36 keeps a
+        // visible margin, and "100" still has room at font 12.
+        lv_obj_set_size(chip, 36, 28);
         lv_obj_set_style_radius(chip, 14, 0);
         lv_obj_set_style_border_width(chip, 0, 0);
         lv_obj_clear_flag(chip, LV_OBJ_FLAG_SCROLLABLE);
@@ -173,8 +181,9 @@ lv_obj_t *uiJogCreate()
     }
 
     // No "Z axis: 0.1 / 1mm steps only" caption: it sat under the back
-    // button, and the step chips already show the truth by hiding the 10mm
-    // chip on Z -- the sentence just restated what the row was doing.
+    // button, and the step chips already show the truth by hiding the
+    // over-limit ones on Z -- the sentence just restated what the row was
+    // doing.
     addBackButton(scr);
 
     restyleChips();

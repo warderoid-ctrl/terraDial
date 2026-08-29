@@ -66,7 +66,10 @@ namespace
             return;
         }
         // Long filenames are the normal case, not an edge case -- the label
-        // is width-limited and ellipsises rather than wrapping the hub open.
+        // is width-limited and scrolls rather than wrapping the hub open.
+        // Safe to set unconditionally: RadialRing only calls onSelect when
+        // the selection actually changes, so this can't restart the scroll
+        // animation mid-cycle the way a periodic update would.
         lv_label_set_text(hubNameLbl, entry.name);
         char sizeBuf[16];
         formatSize(sizeBuf, sizeof(sizeBuf), entry.size);
@@ -188,7 +191,17 @@ lv_obj_t *uiFilesCreate()
 
     hubNameLbl = lv_label_create(hub);
     lv_obj_set_width(hubNameLbl, 82);
-    lv_label_set_long_mode(hubNameLbl, LV_LABEL_LONG_DOT);
+    // Scrolls, rather than ellipsising. 82px holds roughly a dozen characters
+    // and plotter files are routinely named by layer -- "drawing 1", "drawing
+    // 2", "drawing 3" -- so the digit that tells them apart is the character
+    // an ellipsis eats first. Every name here is a name you're choosing
+    // between, so the end of it has to arrive on its own.
+    //
+    // CIRCULAR (wraps around through a gap) rather than plain SCROLL (runs to the
+    // end, then reverses): the reversal reads as the text having stopped, and
+    // on a name that only just overflows it can look like a twitch. LVGL only
+    // animates when the text actually overflows, so short names sit still.
+    lv_label_set_long_mode(hubNameLbl, LV_LABEL_LONG_SCROLL_CIRCULAR);
     lv_obj_set_style_text_align(hubNameLbl, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(hubNameLbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(hubNameLbl, Palette::text(), 0);

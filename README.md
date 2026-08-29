@@ -12,12 +12,17 @@ also drive).
 
 ## What it does
 
-- **Jog** X/Y/Z by knob, with selectable step sizes and a per-axis *Set zero*
+- **Jog** X/Y/Z by knob, with selectable step sizes (0.1 / 1 / 10 / 100mm on
+  X and Y; Z is capped at 1mm, being only a pen lift) and a per-axis *Set zero*
 - **Run G-code** straight off the plotter's SD card, with live progress,
   elapsed time and an estimate of the time remaining — including for jobs
   started from terraForge or the web UI rather than the panel
 - **Pen up/down**, **homing** (with a clear-the-bed confirmation), **E-Stop**
   and **alarm clear**, the last showing FluidNC's own reason for the alarm
+- **Park for photo** — one dial item that lifts the pen, homes, then runs the
+  gantry out to the far end of Y so the finished plot can be photographed
+  unobstructed. Sequenced against the status stream rather than fired blind,
+  since G-code sent mid-homing is rejected
 - **Rail lighting** control via terraPixel — brightness, film mode, comet width
 - **On-device Wi-Fi setup**: scan for networks, pick one, type the password
 - **Machine status** shown on the panel's 5-LED ring, readable across the room

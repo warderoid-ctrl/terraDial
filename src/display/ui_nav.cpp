@@ -10,6 +10,7 @@
 #include "ui_job_progress.h"
 #include "ui_estop.h"
 #include "ui_alarm_clear.h"
+#include "ui_park.h"
 #include "../input/encoder.h"
 #include "radial_keyboard.h"
 #include "screen_sleep.h"
@@ -18,7 +19,7 @@
 
 namespace
 {
-    const int SCREEN_COUNT = 10;
+    const int SCREEN_COUNT = 11;
     const int DIAL_SCREEN_INDEX = 0;
     const int JOG_SCREEN_INDEX = 1;
     const int FILES_SCREEN_INDEX = 2;
@@ -29,6 +30,7 @@ namespace
     const int JOB_PROGRESS_SCREEN_INDEX = 7;
     const int ESTOP_SCREEN_INDEX = 8;
     const int ALARM_CLEAR_SCREEN_INDEX = 9;
+    const int PARK_SCREEN_INDEX = 10;
 
     lv_obj_t *screens[SCREEN_COUNT];
     int currentIndex = DIAL_SCREEN_INDEX;
@@ -65,7 +67,12 @@ namespace
 
     // Maps a Home ring item index to what opening it does. Order must
     // match ui_dial.cpp's DIAL_ITEMS: Home, Jog, Pen, Jobs, Progress,
-    // E-Stop, Alarm, Lights, Settings.
+    // Photo, E-Stop, Alarm, Lights, Settings.
+    //
+    // These are positional, so inserting an item in DIAL_ITEMS renumbers
+    // every case below it -- Photo going in at 5 pushed E-Stop through
+    // Settings along by one. Get that wrong and the dial still works, it
+    // just opens the wrong screen: tapping E-Stop would have opened Photo.
     void onDialOpen(int cardIndex)
     {
         switch (cardIndex)
@@ -75,10 +82,11 @@ namespace
             case 2: goTo(PEN_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 3: goTo(FILES_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
             case 4: goTo(JOB_PROGRESS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 5: goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 6: goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 7: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
-            case 8: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 5: goTo(PARK_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 6: goTo(ESTOP_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 7: goTo(ALARM_CLEAR_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 8: goTo(LIGHTS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
+            case 9: goTo(SETTINGS_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON); break;
         }
     }
 
@@ -146,6 +154,7 @@ namespace UiNav
         screens[JOB_PROGRESS_SCREEN_INDEX] = uiJobProgressCreate();
         screens[ESTOP_SCREEN_INDEX] = uiEstopCreate();
         screens[ALARM_CLEAR_SCREEN_INDEX] = uiAlarmClearCreate();
+        screens[PARK_SCREEN_INDEX] = uiParkCreate();
 
         uiDialSetHandlers(onDialOpen);
 
@@ -268,6 +277,18 @@ namespace UiNav
         if (currentIndex == ALARM_CLEAR_SCREEN_INDEX)
         {
             if (ev == ButtonEvent::Click) uiAlarmClearTrigger();
+            else if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
+            return;
+        }
+
+        // Park is a confirm screen like the ones above -- knob click starts
+        // the macro. Backing out does NOT cancel it: the sequence runs from
+        // main.cpp's loop precisely so it survives leaving this screen, and
+        // half-completing a homing cycle on a back-press would be worse than
+        // letting it finish.
+        if (currentIndex == PARK_SCREEN_INDEX)
+        {
+            if (ev == ButtonEvent::Click) uiParkTrigger();
             else if (ev == ButtonEvent::LongPress) goTo(DIAL_SCREEN_INDEX, LV_SCR_LOAD_ANIM_FADE_ON);
             return;
         }
