@@ -50,7 +50,13 @@ jobs:
           mkdir -p site
           cp web/index.html site/
 
-          TAG="$(gh release view --json tagName -q .tagName)"
+          # The SAME endpoint the panel's updater queries, deliberately:
+          # `gh release view` would pick the most recent release including
+          # prereleases, so an -rc1 tag would be withheld from every panel
+          # (see release.yml's `prerelease:`) and yet pushed onto the
+          # installer page. Asking for `releases/latest` means the page and
+          # the panel can't disagree about which build is current.
+          TAG="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" -q .tag_name)"
           VERSION="${TAG#v}"
           echo "Publishing installer for $TAG"
 

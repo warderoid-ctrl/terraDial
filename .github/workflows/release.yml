@@ -111,6 +111,17 @@ jobs:
         with:
           name: terraDial ${{ steps.version.outputs.version }}
           generate_release_notes: true
+          # A tag with a hyphen in it -- v0.2.0-rc1 -- publishes as a
+          # prerelease, which is how you get a real, downloadable build
+          # without every panel in existence being offered it: the panel
+          # asks GitHub for `releases/latest`, and that endpoint skips
+          # prereleases and drafts.
+          #
+          # It also defuses a sharp edge in the updater. versionRank() stops
+          # at the first non-digit, so "0.2.0-rc1" ranks IDENTICALLY to
+          # "0.2.0" -- two different builds it can't tell apart. Keeping
+          # suffixed tags out of `latest` means it never has to.
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             dist/terradial-ota.bin
             dist/terradial-factory.bin

@@ -167,6 +167,26 @@ quietly, which is a miserable thing to debug from a report that only says
 **One-time repo setup:** Settings → Pages → Source must be set to *GitHub
 Actions*, or the workflow builds everything and has nowhere to publish it.
 
+### Test builds nobody else gets
+
+A tag with a hyphen in it — `v0.2.0-rc1` — publishes as a GitHub
+*prerelease*. It gets a release page and downloadable binaries like any
+other, but no panel is offered it and the installer page ignores it: both
+ask for `releases/latest`, and that endpoint skips prereleases.
+
+That's also the only safe way to use a suffix. `versionRank()` in the
+updater stops at the first non-digit, so `0.2.0-rc1` ranks *identically* to
+`0.2.0` — two different builds it cannot tell apart. Keeping suffixed tags
+out of `latest` means it never has to.
+
+### Versions can only go forwards
+
+The updater offers a release only when it ranks strictly higher than the
+running build, and there is no downgrade path in the UI. So a bad release is
+retired by tagging a **higher** number — never by deleting the release,
+moving the tag, or re-uploading under the same one. None of those reach a
+panel that has already updated.
+
 ## Building
 
 Built with [PlatformIO](https://platformio.org/).
