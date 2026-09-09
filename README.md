@@ -149,10 +149,20 @@ GitHub Release, and redeploys the installer page:
 | `terradial-ota.bin` | The app image. What the panel downloads for itself — the name is fixed, and `OTA_ASSET_NAME` in [`src/net/ota_updater.h`](src/net/ota_updater.h) has to keep matching it |
 | `terradial-factory.bin` | Bootloader + partitions + app, merged for flashing at `0x0`. What the web installer writes |
 
-The installer page and the factory image are deployed to Pages *together*, so
-the browser fetches the firmware same-origin — a cross-origin fetch the browser
-declines fails quietly, and that's a miserable thing to debug from a report
-that only says "the button doesn't work".
+Publishing the installer page is a second workflow,
+[`pages.yml`](.github/workflows/pages.yml), which the first triggers on
+success. That split isn't tidiness: the `github-pages` environment only
+accepts deployments from the default branch, and a release workflow runs from
+a tag — v0.1.0 failed exactly that way. A `workflow_run` trigger is evaluated
+in the default branch's context whatever ref set it off, so it passes the rule
+without anyone having to loosen a protection setting that lives nowhere in the
+repo.
+
+It downloads the factory image from the release it just made and serves it
+from the Pages origin rather than linking to github.com — Web Serial fetches
+the image with JS, and a cross-origin fetch the browser declines fails
+quietly, which is a miserable thing to debug from a report that only says
+"the button doesn't work".
 
 **One-time repo setup:** Settings → Pages → Source must be set to *GitHub
 Actions*, or the workflow builds everything and has nowhere to publish it.
@@ -229,7 +239,7 @@ answers "STOPPED" or "NOT SENT", the second meaning go and stop it by hand.
 ## Layout
 
 ```
-.github/         release + web-installer publishing workflow
+.github/         release build, and the installer-page deploy that follows it
 docs/screens/    README illustrations (generated)
 include/         pins, palette, LVGL config, shared enums
 lib/CST816D/     vendor touch driver

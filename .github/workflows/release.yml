@@ -9,11 +9,10 @@ name: Release firmware
 #                               by the web installer, and the only thing that
 #                               works on a blank board
 #
-# Both are attached to the GitHub Release. The factory image is ALSO copied
-# onto the Pages site next to the installer page, so the browser fetches it
-# same-origin -- Web Serial installs fail silently on a cross-origin fetch
-# the browser declines, and that is a miserable thing to debug from a bug
-# report that just says "the button doesn't work".
+# Both are attached to the GitHub Release. Publishing the installer PAGE is
+# a separate workflow (pages.yml) that this one triggers on success -- the
+# github-pages environment refuses deployments from a tag, and this workflow
+# only ever runs from one. See the note at the top of pages.yml.
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 
@@ -23,8 +22,6 @@ on:
 
 permissions:
   contents: write # create the release
-  pages: write    # publish the installer page
-  id-token: write # required by actions/deploy-pages
 
 env:
   PIO_ENV: crowpanel-1_28-rotary
@@ -32,8 +29,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -111,32 +106,6 @@ jobs:
 
           ls -l dist
 
-      - name: Assemble the installer site
-        run: |
-          set -eu
-          mkdir -p site
-          cp web/index.html site/
-          cp dist/terradial-factory.bin site/
-          # The manifest is generated rather than committed so its version
-          # can't drift from the binary sitting beside it.
-          cat > site/manifest.json <<EOF
-          {
-            "name": "terraDial",
-            "version": "${{ steps.version.outputs.version }}",
-            "new_install_prompt_erase": true,
-            "builds": [
-              {
-                "chipFamily": "ESP32-S3",
-                "parts": [{ "path": "terradial-factory.bin", "offset": 0 }]
-              }
-            ]
-          }
-          EOF
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
@@ -145,13 +114,3 @@ jobs:
           files: |
             dist/terradial-ota.bin
             dist/terradial-factory.bin
-
-  pages:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4

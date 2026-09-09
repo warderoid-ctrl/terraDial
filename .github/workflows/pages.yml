@@ -1,0 +1,83 @@
+name: Publish installer page
+
+# The web installer, deployed to GitHub Pages.
+#
+# Why this is a second workflow rather than another job in release.yml:
+# the `github-pages` environment only accepts deployments from the default
+# branch, and release.yml runs from a TAG. Deploying from there fails with
+# "Tag v0.1.0 is not allowed to deploy to github-pages due to environment
+# protection rules" -- which it did, on v0.1.0.
+#
+# A `workflow_run` trigger is evaluated in the DEFAULT BRANCH's context no
+# matter what ref set it off, so this satisfies the rule without anyone
+# having to loosen a protection setting in the repo's UI. The alternative
+# was a manual environment rule allowing `v*`, which works but lives
+# nowhere in the repo and is silently lost if it's ever reset.
+#
+# The binary it publishes comes from the release release.yml just made, so
+# the page and the firmware beside it always describe the same build.
+
+on:
+  workflow_run:
+    workflows: ["Release firmware"]
+    types: [completed]
+  # For redeploying the page on its own -- a copy edit to web/index.html
+  # doesn't deserve a version bump.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    # A failed build has no assets to publish, and deploying the previous
+    # page over the top of nothing just hides that it failed.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the latest release's factory image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          mkdir -p site
+          cp web/index.html site/
+
+          TAG="$(gh release view --json tagName -q .tagName)"
+          VERSION="${TAG#v}"
+          echo "Publishing installer for $TAG"
+
+          # Downloaded and served from our own origin rather than linked to
+          # github.com: Web Serial installs fetch the image with JS, and a
+          # cross-origin fetch the browser declines fails quietly.
+          gh release download "$TAG" -p terradial-factory.bin -D site
+
+          cat > site/manifest.json <<EOF
+          {
+            "name": "terraDial",
+            "version": "$VERSION",
+            "new_install_prompt_erase": true,
+            "builds": [
+              {
+                "chipFamily": "ESP32-S3",
+                "parts": [{ "path": "terradial-factory.bin", "offset": 0 }]
+              }
+            ]
+          }
+          EOF
+
+          ls -l site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
