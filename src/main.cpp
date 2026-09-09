@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "pins.h"
+#include "version.h"
 #include "config/settings.h"
 #include "display/lgfx_config.h"
 #include "display/ui_nav.h"
@@ -17,6 +18,7 @@
 #include "net/fluidnc_client.h"
 #include "net/terrapixel_client.h"
 #include "net/wifi_manager.h"
+#include "net/ota_updater.h"
 #include <CST816D.h>
 
 // ---- terraDial: CrowPanel round-screen control panel for terraPen ----
@@ -211,6 +213,12 @@ static void networkTask(void *)
             MachineMode m = fluidNC.status().mode;
             if (m != MachineMode::Homing && m != MachineMode::Run && m != MachineMode::Hold)
                 terraPixel.update(); // blocking HTTP -- belongs here, not on the UI loop
+
+            // Same reasoning again, one step further: a firmware download
+            // holds this task for the length of the transfer. It only runs
+            // when the About card has actually asked for it, and it refuses
+            // outright while the machine is moving (see ota_updater.cpp).
+            OtaUpdater::update();
         }
         vTaskDelay(pdMS_TO_TICKS(2));
     }
@@ -225,7 +233,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(300); // give the USB-CDC serial monitor time to attach before the first prints
-    Serial.println("terraDial boot");
+    Serial.printf("terraDial boot -- firmware %s\n", Version::firmware());
 
     Config::begin();
 
@@ -281,6 +289,23 @@ void loop()
     }
 
     ScreenSleep::update();
+
+    // A finished OTA reboots from here rather than from inside
+    // httpUpdate.update(): rebooting on the network task would cut the panel
+    // dark mid-frame, with the last thing on screen being a progress bar at
+    // 99%. The pause gives LVGL a couple of frames to paint "restarting" so
+    // the user sees why the screen went away.
+    static uint32_t otaRestartAt = 0;
+    if (OtaUpdater::restartPending())
+    {
+        if (otaRestartAt == 0) otaRestartAt = millis() + 1200;
+        else if ((int32_t)(millis() - otaRestartAt) >= 0)
+        {
+            Serial.println("[ota] restarting into the new firmware");
+            Serial.flush();
+            ESP.restart();
+        }
+    }
 
     // Restored to the original 5ms -- cutting it chasing lower input latency
     // left the WiFi/BT background task (and the I2C touch driver's own

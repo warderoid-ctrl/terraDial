@@ -101,12 +101,19 @@ lv_obj_t *uiMakeButton(lv_obj_t *parent, const char *text, lv_obj_t **outLabel)
     lv_obj_set_style_radius(btn, 17, 0);
     lv_obj_set_style_bg_color(btn, Palette::accent(), 0);
     lv_obj_set_style_bg_color(btn, Palette::accentHover(), LV_STATE_PRESSED);
+    // LV_STATE_DISABLED has to be styled explicitly here, and it carries the
+    // whole weight of communicating "not now": LVGL's POINTER indev doesn't
+    // gate events on the disabled state the way its keypad one does, so a
+    // disabled button still fires CLICKED on a tap. Callers must ignore the
+    // event themselves -- this only makes the button stop inviting it.
+    lv_obj_set_style_bg_color(btn, Palette::bgSecondary(), LV_STATE_DISABLED);
     lv_obj_set_style_shadow_width(btn, 0, 0);
 
     lv_obj_t *lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
     lv_obj_set_style_text_font(lbl, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(lbl, Palette::accentFg(), 0);
+    lv_obj_set_style_text_color(lbl, Palette::textFaint(), LV_STATE_DISABLED);
     lv_obj_center(lbl);
     if (outLabel) *outLabel = lbl;
     return btn;

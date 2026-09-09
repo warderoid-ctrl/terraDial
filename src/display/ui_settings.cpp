@@ -9,6 +9,8 @@
 #include "radial_keyboard.h"
 #include "icon_logo.h"
 #include "branding.h"
+#include "version.h"
+#include "../net/ota_updater.h"
 #include <WiFi.h>
 #include <stdio.h>
 #include <string.h>
@@ -603,6 +605,126 @@ namespace
         lv_obj_set_style_border_width(qr, 4, 0);
     }
 
+    // ---- firmware update, on the About card ----
+    // Not a fifth Settings category: the ring's geometry is tuned for four
+    // (see the arc comment in uiSettingsCreate), and "what version am I on"
+    // is an About question anyway -- the version label and the button that
+    // changes it belong on the same card.
+    lv_obj_t *updateBtn = nullptr;
+    lv_obj_t *updateBtnLbl = nullptr;
+    lv_obj_t *updateStatusLbl = nullptr;
+    lv_obj_t *updateBar = nullptr;
+
+    void updateBtnCb(lv_event_t *e)
+    {
+        (void)e;
+        // One button, three jobs, decided by where the updater has got to.
+        // A separate "install" button would sit dead on screen for the
+        // entire life of a panel that is already up to date.
+        switch (OtaUpdater::state())
+        {
+            case OtaUpdater::State::Available:
+                OtaUpdater::requestInstall();
+                break;
+            case OtaUpdater::State::Checking:
+            case OtaUpdater::State::Installing:
+            case OtaUpdater::State::Done:
+                break; // in flight -- the label already says so
+            default:
+                OtaUpdater::requestCheck();
+                break;
+        }
+    }
+
+    // Mirrors the updater's state onto the three widgets above. Called from
+    // uiSettingsUpdate(), i.e. on the UI core, reading values the network
+    // task wrote -- see the threading note in net/ota_updater.h.
+    void refreshUpdateWidgets()
+    {
+        if (!updateBtnLbl) return;
+
+        OtaUpdater::State st = OtaUpdater::state();
+
+        const char *btnText = "Check for updates";
+        bool enabled = true;
+        switch (st)
+        {
+            case OtaUpdater::State::Checking:   btnText = "Checking..."; enabled = false; break;
+            case OtaUpdater::State::Available:  btnText = "Install update"; break;
+            case OtaUpdater::State::Installing: btnText = "Installing..."; enabled = false; break;
+            case OtaUpdater::State::Done:       btnText = "Restarting..."; enabled = false; break;
+            case OtaUpdater::State::UpToDate:
+            case OtaUpdater::State::Failed:     btnText = "Check again"; break;
+            default: break;
+        }
+
+        if (strcmp(lv_label_get_text(updateBtnLbl), btnText) != 0)
+            lv_label_set_text(updateBtnLbl, btnText);
+
+        // Greyed rather than hidden: a button that vanishes mid-tap moves
+        // everything below it up under the finger. The state goes on the
+        // label as well as the button because LVGL doesn't propagate object
+        // state to children, and the label carries its own text colour.
+        if (enabled)
+        {
+            lv_obj_clear_state(updateBtn, LV_STATE_DISABLED);
+            lv_obj_clear_state(updateBtnLbl, LV_STATE_DISABLED);
+        }
+        else
+        {
+            lv_obj_add_state(updateBtn, LV_STATE_DISABLED);
+            lv_obj_add_state(updateBtnLbl, LV_STATE_DISABLED);
+        }
+
+        const char *msg = OtaUpdater::message();
+        if (strcmp(lv_label_get_text(updateStatusLbl), msg) != 0)
+            lv_label_set_text(updateStatusLbl, msg);
+        lv_obj_set_style_text_color(
+            updateStatusLbl,
+            st == OtaUpdater::State::Failed ? Palette::accent() : Palette::textMuted(), 0);
+
+        if (st == OtaUpdater::State::Installing)
+        {
+            lv_obj_clear_flag(updateBar, LV_OBJ_FLAG_HIDDEN);
+            lv_bar_set_value(updateBar, OtaUpdater::progressPct(), LV_ANIM_OFF);
+        }
+        else
+        {
+            lv_obj_add_flag(updateBar, LV_OBJ_FLAG_HIDDEN);
+        }
+    }
+
+    void addUpdateControls(lv_obj_t *card)
+    {
+        lv_obj_t *hdr = lv_label_create(card);
+        lv_label_set_text(hdr, "FIRMWARE");
+        lv_obj_set_style_text_font(hdr, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(hdr, Palette::accentSecondary(), 0);
+
+        updateBtn = uiMakeButton(card, "Check for updates", &updateBtnLbl);
+        lv_obj_add_event_cb(updateBtn, updateBtnCb, LV_EVENT_CLICKED, NULL);
+
+        updateStatusLbl = lv_label_create(card);
+        // Wrapped and centred: the failure messages ("Machine busy -- try
+        // when idle") are longer than the 180px content column.
+        lv_obj_set_width(updateStatusLbl, lv_pct(100));
+        lv_label_set_long_mode(updateStatusLbl, LV_LABEL_LONG_WRAP);
+        lv_obj_set_style_text_align(updateStatusLbl, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_text(updateStatusLbl, "");
+        lv_obj_set_style_text_font(updateStatusLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(updateStatusLbl, Palette::textMuted(), 0);
+
+        updateBar = lv_bar_create(card);
+        lv_obj_set_size(updateBar, lv_pct(100), 8);
+        lv_obj_set_style_bg_color(updateBar, Palette::bgPanel(), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(updateBar, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_radius(updateBar, 4, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(updateBar, Palette::accent(), LV_PART_INDICATOR);
+        lv_obj_set_style_radius(updateBar, 4, LV_PART_INDICATOR);
+        lv_bar_set_range(updateBar, 0, 100);
+        lv_obj_add_flag(updateBar, LV_OBJ_FLAG_HIDDEN);
+    }
+
     lv_obj_t *makeAboutCard()
     {
         lv_obj_t *card = makeCardShell("ABOUT");
@@ -624,6 +746,16 @@ namespace
         lv_obj_set_style_text_font(siteLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(siteLbl, Palette::accent(), 0);
 
+        // Directly under the name, because the first question anyone asks
+        // of an About screen is which build they're looking at -- and it's
+        // the first thing worth quoting when reporting a fault.
+        lv_obj_t *versionLbl = lv_label_create(card);
+        char versionBuf[32];
+        snprintf(versionBuf, sizeof(versionBuf), "Firmware %s", Version::firmware());
+        lv_label_set_text(versionLbl, versionBuf);
+        lv_obj_set_style_text_font(versionLbl, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(versionLbl, Palette::textMuted(), 0);
+
         addLinkQr(card, "terrapen.xyz", Branding::siteUrl());
         addLinkQr(card, "Source on GitHub", Branding::githubUrl());
         addLinkQr(card, "Discord", Branding::discordUrl());
@@ -641,12 +773,19 @@ namespace
         lv_obj_set_style_text_font(aboutUptimeLbl, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(aboutUptimeLbl, Palette::textMuted(), 0);
 
+        addUpdateControls(card);
+
         return card;
     }
 
     // ---- category ring ----
     void showRing()
     {
+        // A finished check is only meaningful while you're looking at it --
+        // reopening About half an hour later shouldn't greet you with
+        // "You're up to date" that was true on a different network.
+        // dismiss() ignores this while an update is actually in flight.
+        if (openPanel == 3) OtaUpdater::dismiss();
         if (openPanel >= 0) lv_obj_add_flag(panels[openPanel], LV_OBJ_FLAG_HIDDEN);
         openPanel = -1;
         ring.setVisible(true);
@@ -846,4 +985,6 @@ void uiSettingsUpdate()
     uint32_t upSec = millis() / 1000;
     snprintf(buf, sizeof(buf), "Uptime: %luh %lum", (unsigned long)(upSec / 3600), (unsigned long)((upSec / 60) % 60));
     lv_label_set_text(aboutUptimeLbl, buf);
+
+    refreshUpdateWidgets();
 }

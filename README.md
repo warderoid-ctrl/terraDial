@@ -84,6 +84,79 @@ in shot. Two things worth knowing if you do:
 Enclosure files (`dial case.stl`, `frame mount.stl`, `backplate.dxf`) are in
 the repo root.
 
+## Installing and updating
+
+Neither of these needs a toolchain, a checkout, or anything installed on the
+computer. The Building section below is for changing the firmware, not for
+running it.
+
+### First install — the web installer
+
+<https://warderoid-ctrl.github.io/terraDial/>
+
+Plug the panel into a computer with a USB-C **data** cable, open that page in
+Chrome or Edge on the desktop, and click *Connect and install*. It talks to the
+panel over Web Serial and writes the whole chip — bootloader, partition table
+and app — so it also works on a board that has never been flashed, and on one
+that has been flashed with something broken.
+
+Safari, Firefox and every mobile browser lack Web Serial, so the page tells
+them so rather than failing halfway.
+
+Released builds ship with **no Wi-Fi credentials baked in** — the first boot
+comes up unconnected, and you pick a network on the panel (Settings → Wi-Fi →
+scan). That's the flow a stranger's board has to use anyway, so it's the one
+that gets tested.
+
+### After that — over Wi-Fi, from the panel
+
+**Settings → About → Check for updates.**
+
+The panel asks GitHub for the latest release, compares it against the version
+it's running, and offers to install it. It downloads into the spare app slot
+and reboots into it, so a failed or interrupted download leaves the working
+firmware exactly where it was — there's no window where the panel is holding
+half a firmware.
+
+Two deliberate limits:
+
+- **It refuses while the machine is busy.** The download blocks the same task
+  that pumps FluidNC's WebSocket, for a minute or more, and the reboot at the
+  end drops the connection outright. Mid-plot is the worst possible moment for
+  both, so it says "Machine busy" and does nothing.
+- **A dev build is always offered the release.** A build from a working copy
+  carries the version `dev`, which has no place in the ordering — see
+  `include/version.h`. If you're testing local firmware, don't press the button.
+
+The About card shows the running version at the top, which is the thing worth
+quoting in a bug report.
+
+### Cutting a release
+
+Tag it and push the tag; [`.github/workflows/release.yml`](.github/workflows/release.yml)
+does the rest.
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+That builds the firmware with the tag stamped in, attaches two images to the
+GitHub Release, and redeploys the installer page:
+
+| Asset | What it is |
+|---|---|
+| `terradial-ota.bin` | The app image. What the panel downloads for itself — the name is fixed, and `OTA_ASSET_NAME` in [`src/net/ota_updater.h`](src/net/ota_updater.h) has to keep matching it |
+| `terradial-factory.bin` | Bootloader + partitions + app, merged for flashing at `0x0`. What the web installer writes |
+
+The installer page and the factory image are deployed to Pages *together*, so
+the browser fetches the firmware same-origin — a cross-origin fetch the browser
+declines fails quietly, and that's a miserable thing to debug from a report
+that only says "the button doesn't work".
+
+**One-time repo setup:** Settings → Pages → Source must be set to *GitHub
+Actions*, or the workflow builds everything and has nowhere to publish it.
+
 ## Building
 
 Built with [PlatformIO](https://platformio.org/).
@@ -103,6 +176,12 @@ pio device monitor
 Only the SSID and password are compile-time *defaults*: they're seeded into
 NVS on first boot, after which the Settings screen can change networks
 on-device without a reflash.
+
+A local build reports its version as `dev` unless HEAD is exactly on a tag —
+[`tools/version.py`](tools/version.py) only treats an exact tag as a release,
+because a commit that merely descends from `v0.2.0` is newer than `v0.2.0`, and
+stamping it as that version would have the updater cheerfully offer to
+downgrade it.
 
 ## Using it
 
@@ -150,6 +229,7 @@ answers "STOPPED" or "NOT SENT", the second meaning go and stop it by hand.
 ## Layout
 
 ```
+.github/         release + web-installer publishing workflow
 docs/screens/    README illustrations (generated)
 include/         pins, palette, LVGL config, shared enums
 lib/CST816D/     vendor touch driver
@@ -160,6 +240,7 @@ src/
   led/           WS2812 status ring
   net/           FluidNC WebSocket client, terraPixel HTTP client, Wi-Fi
 tools/           icon, logo and screen-illustration generation
+web/             the browser-based firmware installer (published to Pages)
 design_handoff_radial_dial_ui/   the original design brief (historical)
 ```
 
@@ -194,6 +275,15 @@ Some notes worth knowing before changing things:
 - Project links live in [`include/branding.h`](include/branding.h). The
   Discord URL is deliberately empty until there's a real invite — an entry
   with no URL is skipped rather than rendered as a QR that goes nowhere.
+  `githubOwner()`/`githubRepo()` there are also what the updater queries, so
+  a repo rename means editing them. The old **terraTouch** name still
+  resolves, but only as a 301, and GitHub's API answers a redirect with a
+  note about the move rather than the release — which is why the updater
+  follows redirects, so a rename can't quietly kill the update path on
+  panels already in the field.
+- **`default_16MB.csv` is load-bearing.** The two app slots are what the OTA
+  updater flashes into. A single-app partition table builds and runs perfectly
+  and then fails every update at the point of no return.
 
 ## Licence
 

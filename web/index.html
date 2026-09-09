@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install terraDial</title>
+<meta name="description" content="Flash terraDial firmware onto a CrowPanel 1.28in round display from your browser -- no toolchain, no compiling.">
+
+<!--
+  The web installer for terraDial.
+
+  Published by .github/workflows/release.yml, which copies this file, the
+  generated manifest.json and terradial-factory.bin into one directory and
+  deploys them together. That co-location is deliberate: everything the
+  installer fetches is same-origin, so no browser can decline the download
+  of the firmware image on CORS grounds.
+
+  Palette is terraForge's dark theme, same tokens as include/palette.h.
+-->
+
+<style>
+  :root {
+    --bg-app: #1a1a2e;
+    --bg-panel: #16213e;
+    --bg-secondary: #0f3460;
+    --border: #5c7a9e;
+    --text: #e0e0e0;
+    --text-muted: #9ca3af;
+    --accent: #e94560;
+    --accent-hover: #c73d56;
+    --accent-secondary: #60a0ff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 3rem 1.25rem 4rem;
+    background: var(--bg-app);
+    color: var(--text);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+
+  main { width: 100%; max-width: 34rem; }
+
+  h1 { font-size: 1.9rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .09em;
+       color: var(--accent-secondary); margin: 2.5rem 0 .75rem; }
+
+  .tagline { color: var(--text-muted); margin: 0 0 2rem; }
+
+  .install {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .version { color: var(--text-muted); font-size: .85rem; margin-top: .9rem; }
+  .version strong { color: var(--text); font-weight: 600; }
+
+  /* esp-web-install-button renders its own <button> unless one is slotted
+     in, and the default is a plain unstyled control. This is that slot. */
+  button.flash {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 999px;
+    padding: .7rem 1.9rem;
+    cursor: pointer;
+  }
+  button.flash:hover { background: var(--accent-hover); }
+
+  /* Shown only when the browser can't do Web Serial -- the component moves
+     the `unsupported` slot into view itself. */
+  .unsupported {
+    color: var(--accent);
+    font-size: .9rem;
+  }
+
+  ol, ul { padding-left: 1.3rem; }
+  li { margin: .4rem 0; }
+
+  code {
+    background: var(--bg-secondary);
+    padding: .12em .4em;
+    border-radius: 4px;
+    font-size: .88em;
+  }
+
+  a { color: var(--accent-secondary); }
+
+  .note {
+    border-left: 3px solid var(--bg-secondary);
+    padding: .1rem 0 .1rem 1rem;
+    color: var(--text-muted);
+    font-size: .93rem;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--bg-secondary);
+    color: var(--text-muted);
+    font-size: .85rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Install terraDial</h1>
+  <p class="tagline">
+    Firmware for the terraPen control panel &mdash; the CrowPanel 1.28&Prime;
+    round display. Plug it in, click the button, done. Nothing to compile and
+    nothing to install on your computer.
+  </p>
+
+  <div class="install">
+    <esp-web-install-button manifest="manifest.json">
+      <button class="flash" slot="activate">Connect and install</button>
+      <span slot="unsupported" class="unsupported">
+        Your browser can't talk to USB devices. Use Chrome or Edge on a
+        desktop &mdash; Safari, Firefox and every mobile browser lack the
+        Web Serial support this needs.
+      </span>
+      <span slot="not-allowed" class="unsupported">
+        This page has to be served over HTTPS to reach the USB port.
+      </span>
+    </esp-web-install-button>
+    <p class="version">Latest firmware: <strong id="version">&hellip;</strong></p>
+  </div>
+
+  <h2>What to expect</h2>
+  <ol>
+    <li>Connect the panel to your computer with a USB-C data cable. Charge-only
+      cables are the single most common reason the port doesn't appear.</li>
+    <li>Click <em>Connect and install</em> and pick the panel from the list of
+      serial ports.</li>
+    <li>Choose <em>Install terraDial</em>. It erases and writes the whole chip,
+      which takes a minute or two.</li>
+    <li>When it's finished, the panel reboots into the dial.</li>
+  </ol>
+
+  <h2>Then set up Wi-Fi</h2>
+  <p class="note">
+    Released firmware ships with no network baked in, so the first boot comes
+    up unconnected. On the panel: <strong>Settings &rarr; Wi-Fi &rarr; Scan</strong>,
+    pick your network and type the password with the knob. That's stored on the
+    panel and survives later updates.
+  </p>
+
+  <h2>Updating later</h2>
+  <p>
+    You only need this page once. After the first install the panel updates
+    itself over Wi-Fi &mdash; <strong>Settings &rarr; About &rarr; Check for
+    updates</strong> &mdash; and no cable is involved. Come back here if a panel
+    ever needs recovering.
+  </p>
+
+  <h2>If the port doesn't show up</h2>
+  <ul>
+    <li>Try a different USB-C cable, and a port directly on the computer rather
+      than through a hub.</li>
+    <li>Hold the <code>BOOT</code> button, tap <code>RESET</code>, then release
+      <code>BOOT</code>. That forces the download mode the installer needs when
+      the automatic reset doesn't take.</li>
+    <li>Close anything else holding the port &mdash; a serial monitor, the
+      Arduino IDE, <code>pio device monitor</code>.</li>
+  </ul>
+
+  <footer>
+    <a href="https://github.com/warderoid-ctrl/terraDial">Source on GitHub</a>
+    &middot; <a href="https://terrapen.xyz">terrapen.xyz</a>
+    &middot; MIT licensed
+  </footer>
+</main>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<script>
+  // The manifest is the one thing on this page that changes per release, so
+  // read the version out of it rather than stamping it into the HTML.
+  fetch("manifest.json")
+    .then((r) => r.json())
+    .then((m) => { document.getElementById("version").textContent = m.version; })
+    .catch(() => { document.getElementById("version").textContent = "see releases"; });
+</script>
+</body>
+</html>

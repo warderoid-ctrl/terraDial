@@ -23,6 +23,20 @@ namespace Branding
     inline const char *mdnsAddress() { return "terradial.local"; }
 
     inline const char *siteUrl() { return "https://terrapen.xyz"; }
+    // Owner/repo split out because the updater needs them separately for
+    // GitHub's releases API, and one source of truth beats a URL and an API
+    // path drifting apart.
+    //
+    // The repo was renamed terraTouch -> terraDial; the old name still
+    // works, but only as a 301, and GitHub's API answers a redirect with a
+    // JSON body rather than the release you asked for. The updater follows
+    // redirects anyway (see ota_updater.cpp) so a future rename can't strand
+    // a fielded panel -- but the canonical name belongs here regardless.
+    // A local checkout may still have the old name as its git remote; that's
+    // git's business, not the firmware's.
+    inline const char *githubOwner() { return "warderoid-ctrl"; }
+    inline const char *githubRepo() { return "terraDial"; }
+
     inline const char *githubUrl() { return "https://github.com/warderoid-ctrl/terraDial"; }
 
     // TODO: paste the real invite. Left empty deliberately -- an invented

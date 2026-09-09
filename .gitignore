@@ -4,3 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 include/secrets.h
+
+# Working photos of the panel. The README's illustrations are generated
+# vectors in docs/screens/ -- this is the scratch pile they don't come from.
+shots/
